@@ -25,7 +25,7 @@ interface PerformanceCsvRow {
 export class PerformanceCsvService {
   static readonly CSV_HEADER =
     "timestamp,date,planId,planName,routineId,routineName,exerciseId,exerciseName,setIndex,previousReps,previousWeight,targetReps,targetWeight,actualReps,actualWeight,completed,recordType,notes";
-  static readonly COLUMN_COUNT = 18;
+  static readonly COLUMN_COUNT = PerformanceCsvService.CSV_HEADER.split(",").length;
   app: App;
   csvPath: string;
   readonly header = PerformanceCsvService.CSV_HEADER;

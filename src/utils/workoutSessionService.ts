@@ -6,6 +6,7 @@ import {
   WorkoutSessionExercise,
 } from "../types";
 import { PerformanceCsvService } from "./performanceCsvService";
+import { generateId } from "./idUtils";
 
 export class WorkoutSessionService {
   csvService: PerformanceCsvService;
@@ -53,7 +54,7 @@ export class WorkoutSessionService {
     }
 
     return {
-      id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      id: generateId(),
       date: new Date().toISOString().split("T")[0],
       name: routine.name,
       routineId: routine.id,

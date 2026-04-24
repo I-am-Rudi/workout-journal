@@ -1,4 +1,5 @@
 import { App, Notice, TFile, parseYaml, stringifyYaml } from "obsidian";
+import { generateId } from "./idUtils";
 import {
   ExerciseDefinition,
   RoutineDefinition,
@@ -342,7 +343,7 @@ export class DefinitionFileService {
       .replace(/^-+|-+$/g, "");
     return sanitized.length > 0
       ? sanitized
-      : `${fallbackPrefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+      : `${fallbackPrefix}-${generateId()}`;
   }
 
   private findExerciseByLink(

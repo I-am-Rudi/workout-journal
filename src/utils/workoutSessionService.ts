@@ -53,7 +53,7 @@ export class WorkoutSessionService {
     }
 
     return {
-      id: Date.now().toString(),
+      id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
       date: new Date().toISOString().split("T")[0],
       name: routine.name,
       routineId: routine.id,

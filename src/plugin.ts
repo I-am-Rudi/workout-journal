@@ -436,7 +436,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
 
     for (const template of this.settings.exerciseTemplates) {
       const def: ExerciseDefinition = {
-        id: this.toId(template.name),
+        id: this.createIdFromName(template.name),
         name: template.name,
         type: template.type,
         muscleGroups: template.muscleGroups,
@@ -451,11 +451,11 @@ export default class WorkoutTrackerPlugin extends Plugin {
 
     for (const template of this.settings.workoutTemplates) {
       const routine: RoutineDefinition = {
-        id: this.toId(template.name),
+        id: this.createIdFromName(template.name),
         name: template.name,
         estimatedDuration: template.estimatedDuration,
         exercises: template.exercises.map((exerciseName) => ({
-          exerciseId: this.toId(exerciseName),
+          exerciseId: this.createIdFromName(exerciseName),
           exerciseName,
           exerciseLink: `[[${this.settings.exerciseLibraryFolder}/${exerciseName}]]`,
           sets: [
@@ -513,7 +513,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
     const name = await this.prompt("Exercise name");
     if (!name) return;
     const definition: ExerciseDefinition = {
-      id: this.toId(name),
+      id: this.createIdFromName(name),
       name,
       type: "strength",
       muscleGroups: [],
@@ -528,7 +528,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
     const name = await this.prompt("Routine name");
     if (!name) return;
     const routine: RoutineDefinition = {
-      id: this.toId(name),
+      id: this.createIdFromName(name),
       name,
       exercises: [],
       estimatedDuration: 60,
@@ -541,7 +541,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
     const name = await this.prompt("Workout plan name");
     if (!name) return;
     const plan: WorkoutPlanDefinition = {
-      id: this.toId(name),
+      id: this.createIdFromName(name),
       name,
       routines: [],
     };
@@ -557,7 +557,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
     });
   }
 
-  private toId(name: string): string {
+  private createIdFromName(name: string): string {
     const normalized = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const trimmed = normalized.replace(/^-+|-+$/g, "");
     return trimmed || `workout-${Date.now()}`;

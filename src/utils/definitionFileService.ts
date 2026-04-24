@@ -29,7 +29,7 @@ export class DefinitionFileService {
 
   async createExerciseDefinition(def: ExerciseDefinition): Promise<TFile | null> {
     await this.ensureFolders();
-    const fileName = this.createSafeName(def.name, "exercise-note");
+    const fileName = this.createSafeFileName(def.name, "exercise-note");
     const path = `${this.settings.exerciseLibraryFolder}/${fileName}.md`;
     const existing = this.app.vault.getAbstractFileByPath(path);
     const content = this.renderExerciseDefinition(def);
@@ -42,7 +42,7 @@ export class DefinitionFileService {
 
   async createRoutineDefinition(def: RoutineDefinition): Promise<TFile | null> {
     await this.ensureFolders();
-    const fileName = this.createSafeName(def.name, "routine-note");
+    const fileName = this.createSafeFileName(def.name, "routine-note");
     const path = `${this.settings.routinesFolder}/${fileName}.md`;
     const existing = this.app.vault.getAbstractFileByPath(path);
     const content = this.renderRoutineDefinition(def);
@@ -57,7 +57,7 @@ export class DefinitionFileService {
     def: WorkoutPlanDefinition
   ): Promise<TFile | null> {
     await this.ensureFolders();
-    const fileName = this.createSafeName(def.name, "plan-note");
+    const fileName = this.createSafeFileName(def.name, "plan-note");
     const path = `${this.settings.workoutPlansFolder}/${fileName}.md`;
     const existing = this.app.vault.getAbstractFileByPath(path);
     const content = this.renderPlanDefinition(def);
@@ -334,7 +334,7 @@ export class DefinitionFileService {
     }\n`;
   }
 
-  private createSafeName(name: string, fallbackPrefix: string): string {
+  private createSafeFileName(name: string, fallbackPrefix: string): string {
     const sanitized = name
       .replace(/[^a-zA-Z0-9\s-]/g, "")
       .trim()

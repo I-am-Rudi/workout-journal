@@ -256,10 +256,11 @@
 
 /* Mobile layout: set cards (480px and below) */
 @media (max-width: 480px) {
-    /* Set editor inputs fill available space proportionally */
+    /* Set editor inputs fill available space proportionally but stay compact */
     .workout-session-set-editor input {
         flex: 1;
         min-width: 0;
+        max-width: 72px;
         width: auto;
         font-size: 14px;
     }

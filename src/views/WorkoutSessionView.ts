@@ -1,6 +1,6 @@
-import { ItemView, Notice, Setting, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, Platform, Setting, WorkspaceLeaf } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
-import { SessionFinishOptions, WorkoutSession } from "../types";
+import { SessionFinishOptions, WorkoutSession, WorkoutSessionExercise, WorkoutSessionSet } from "../types";
 
 export const WORKOUT_SESSION_VIEW_TYPE = "workout-tracker-session-view";
 
@@ -57,57 +57,64 @@ export class WorkoutSessionView extends ItemView {
       const card = contentEl.createDiv({ cls: "workout-session-card" });
       card.createEl("h3", { text: exercise.exerciseName });
 
-      const tableWrapper = card.createDiv({ cls: "workout-session-table-wrapper" });
-      const table = tableWrapper.createEl("table", { cls: "workout-session-table" });
-      const header = table.createEl("tr");
-      ["Set", "Prev", "Target", "Actual", "Done", ""].forEach((label) => {
-        header.createEl("th", { text: label });
-      });
-
-      exercise.sets.forEach((set, index) => {
-        const row = table.createEl("tr", {
-          cls: set.completed ? "workout-session-row-completed" : "",
+      if (Platform.isMobile) {
+        const setsWrapper = card.createDiv({ cls: "workout-session-sets-mobile" });
+        exercise.sets.forEach((set, index) => {
+          this.renderSetCard(setsWrapper, set, index, exercise, () => this.render());
+        });
+      } else {
+        const tableWrapper = card.createDiv({ cls: "workout-session-table-wrapper" });
+        const table = tableWrapper.createEl("table", { cls: "workout-session-table" });
+        const header = table.createEl("tr");
+        ["Set", "Prev", "Target", "Actual", "Done", ""].forEach((label) => {
+          header.createEl("th", { text: label });
         });
 
-        row.createEl("td", { text: String(set.setIndex) });
-        row.createEl("td", {
-          text:
-            set.previousWeight !== undefined || set.previousReps !== undefined
-              ? `${set.previousWeight ?? "-"} × ${set.previousReps ?? "-"}`
-              : "-",
+        exercise.sets.forEach((set, index) => {
+          const row = table.createEl("tr", {
+            cls: set.completed ? "workout-session-row-completed" : "",
+          });
+
+          row.createEl("td", { text: String(set.setIndex) });
+          row.createEl("td", {
+            text:
+              set.previousWeight !== undefined || set.previousReps !== undefined
+                ? `${set.previousWeight ?? "-"} × ${set.previousReps ?? "-"}`
+                : "-",
+          });
+
+          const targetCell = row.createEl("td");
+          this.renderSetEditor(targetCell, set.targetWeight, set.targetReps, (weight, reps) => {
+            set.targetWeight = weight;
+            set.targetReps = reps;
+            this.session!.hasRoutineChanges = true;
+          });
+
+          const actualCell = row.createEl("td");
+          this.renderSetEditor(actualCell, set.actualWeight, set.actualReps, (weight, reps) => {
+            set.actualWeight = weight;
+            set.actualReps = reps;
+          });
+
+          const doneCell = row.createEl("td");
+          const done = doneCell.createEl("input", { type: "checkbox" });
+          done.checked = set.completed;
+          done.onchange = () => {
+            set.completed = done.checked;
+            exercise.completed = exercise.sets.every((exerciseSet) => exerciseSet.completed);
+            row.toggleClass("workout-session-row-completed", set.completed);
+          };
+
+          const removeCell = row.createEl("td");
+          const removeBtn = removeCell.createEl("button", { text: "✕", cls: "workout-session-remove-set" });
+          removeBtn.onclick = () => {
+            exercise.sets.splice(index, 1);
+            exercise.sets.forEach((s, i) => { s.setIndex = i + 1; });
+            this.session!.hasRoutineChanges = true;
+            this.render();
+          };
         });
-
-        const targetCell = row.createEl("td");
-        this.renderSetEditor(targetCell, set.targetWeight, set.targetReps, (weight, reps) => {
-          set.targetWeight = weight;
-          set.targetReps = reps;
-          this.session!.hasRoutineChanges = true;
-        });
-
-        const actualCell = row.createEl("td");
-        this.renderSetEditor(actualCell, set.actualWeight, set.actualReps, (weight, reps) => {
-          set.actualWeight = weight;
-          set.actualReps = reps;
-        });
-
-        const doneCell = row.createEl("td");
-        const done = doneCell.createEl("input", { type: "checkbox" });
-        done.checked = set.completed;
-        done.onchange = () => {
-          set.completed = done.checked;
-          exercise.completed = exercise.sets.every((exerciseSet) => exerciseSet.completed);
-          row.toggleClass("workout-session-row-completed", set.completed);
-        };
-
-        const removeCell = row.createEl("td");
-        const removeBtn = removeCell.createEl("button", { text: "✕", cls: "workout-session-remove-set" });
-        removeBtn.onclick = () => {
-          exercise.sets.splice(index, 1);
-          exercise.sets.forEach((s, i) => { s.setIndex = i + 1; });
-          this.session!.hasRoutineChanges = true;
-          this.render();
-        };
-      });
+      }
 
       new Setting(card).addButton((btn) =>
         btn.setButtonText("Add Set").onClick(() => {
@@ -145,7 +152,9 @@ export class WorkoutSessionView extends ItemView {
         text.setValue(this.session.notes || "").onChange((value) => {
           this.session!.notes = value;
         })
-      )
+      );
+
+    new Setting(contentEl)
       .addButton((btn) =>
         btn
           .setButtonText("Finish Workout")
@@ -161,6 +170,62 @@ export class WorkoutSessionView extends ItemView {
           new Notice("Workout session cancelled.");
         })
       );
+  }
+
+  private renderSetCard(
+    container: HTMLElement,
+    set: WorkoutSessionSet,
+    index: number,
+    exercise: WorkoutSessionExercise,
+    onRerender: () => void
+  ) {
+    const card = container.createDiv({
+      cls: `workout-session-set-card${set.completed ? " workout-session-row-completed" : ""}`,
+    });
+
+    // Header row: set number | previous | done checkbox + remove button
+    const header = card.createDiv({ cls: "workout-session-set-card-header" });
+    header.createEl("span", { text: `Set ${set.setIndex}`, cls: "workout-session-set-card-set-num" });
+
+    const prevText =
+      set.previousWeight !== undefined || set.previousReps !== undefined
+        ? `${set.previousWeight ?? "-"} × ${set.previousReps ?? "-"}`
+        : "-";
+    header.createEl("span", { text: prevText, cls: "workout-session-set-card-prev" });
+
+    const headerRight = header.createDiv({ cls: "workout-session-set-card-header-right" });
+    const done = headerRight.createEl("input", { type: "checkbox" });
+    done.checked = set.completed;
+    done.onchange = () => {
+      set.completed = done.checked;
+      exercise.completed = exercise.sets.every((s) => s.completed);
+      card.toggleClass("workout-session-row-completed", set.completed);
+    };
+
+    const removeBtn = headerRight.createEl("button", { text: "✕", cls: "workout-session-remove-set" });
+    removeBtn.onclick = () => {
+      exercise.sets.splice(index, 1);
+      exercise.sets.forEach((s, i) => { s.setIndex = i + 1; });
+      this.session!.hasRoutineChanges = true;
+      onRerender();
+    };
+
+    // Target row
+    const targetRow = card.createDiv({ cls: "workout-session-set-card-row" });
+    targetRow.createEl("span", { text: "Target", cls: "workout-session-set-card-label" });
+    this.renderSetEditor(targetRow, set.targetWeight, set.targetReps, (weight, reps) => {
+      set.targetWeight = weight;
+      set.targetReps = reps;
+      this.session!.hasRoutineChanges = true;
+    });
+
+    // Actual row
+    const actualRow = card.createDiv({ cls: "workout-session-set-card-row" });
+    actualRow.createEl("span", { text: "Actual", cls: "workout-session-set-card-label" });
+    this.renderSetEditor(actualRow, set.actualWeight, set.actualReps, (weight, reps) => {
+      set.actualWeight = weight;
+      set.actualReps = reps;
+    });
   }
 
   private renderSetEditor(

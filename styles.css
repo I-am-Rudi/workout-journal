@@ -50,6 +50,11 @@
 }
 
 /* Modal improvements */
+.modal {
+    max-width: 100vw;
+    box-sizing: border-box;
+}
+
 .modal .workout-exercise-item {
     background-color: var(--background-secondary);
     padding: 12px;
@@ -125,6 +130,12 @@
         margin-left: 0;
         align-self: flex-end;
     }
+
+    .workout-exercise-item > div:last-child {
+        align-self: flex-end;
+        display: flex;
+        justify-content: flex-end;
+    }
     
     .workout-set-container {
         padding: 12px;
@@ -172,12 +183,14 @@
 /* Strong-like workout session tracker */
 .workout-session-view {
     padding: 12px;
+    overflow-x: hidden;
 }
 
 .workout-session-meta {
     color: var(--text-muted);
     margin-top: -4px;
     margin-bottom: 12px;
+    word-break: break-word;
 }
 
 .workout-session-card {
@@ -239,4 +252,72 @@
 
 .workout-session-remove-set:hover {
     background-color: var(--background-modifier-error);
+}
+
+/* Mobile layout: set cards (480px and below) */
+@media (max-width: 480px) {
+    /* Set editor inputs fill available space proportionally */
+    .workout-session-set-editor input {
+        flex: 1;
+        min-width: 0;
+        width: auto;
+        font-size: 14px;
+    }
+
+    /* Set container inputs fill full width */
+    .workout-set-container {
+        padding: 8px;
+    }
+
+    .workout-set-container .setting-item-control input {
+        width: 100%;
+    }
+
+    /* Mobile set card layout */
+    .workout-session-set-card {
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--background-modifier-border);
+        border-radius: 6px;
+        padding: 8px;
+        margin: 6px 0;
+        background: var(--background-secondary);
+    }
+
+    .workout-session-set-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+    }
+
+    .workout-session-set-card-header-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .workout-session-set-card-prev {
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+
+    .workout-session-set-card-set-num {
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    .workout-session-set-card-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 4px 0;
+    }
+
+    .workout-session-set-card-label {
+        width: 52px;
+        font-size: 11px;
+        color: var(--text-muted);
+        flex-shrink: 0;
+    }
 }

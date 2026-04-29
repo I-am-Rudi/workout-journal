@@ -23,7 +23,7 @@ import { WorkoutFileService } from "./utils/workoutFileService";
 import { DefinitionFileService } from "./utils/definitionFileService";
 import { PerformanceCsvService } from "./utils/performanceCsvService";
 import { WorkoutSessionService } from "./utils/workoutSessionService";
-import { generateId } from "./utils/idUtils";
+import { generateId, createIdFromName } from "./utils/idUtils";
 import {
   ExerciseTemplateModal,
   InputPromptModal,
@@ -566,9 +566,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
   }
 
   private createIdFromName(name: string): string {
-    const normalized = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const trimmed = normalized.replace(/^-+|-+$/g, "");
-    return trimmed || `workout-${generateId()}`;
+    return createIdFromName(name);
   }
 
   private handleFileModify(file: TFile): void {

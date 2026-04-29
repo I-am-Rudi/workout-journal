@@ -1,6 +1,7 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 import { ExerciseDefinition, WorkoutSessionExercise } from "../types";
 import WorkoutTrackerPlugin from "../plugin";
+import { createIdFromName } from "../utils/idUtils";
 
 const DEFAULT_NUM_SETS = 3;
 
@@ -82,10 +83,7 @@ export class AddSessionExerciseModal extends Modal {
   }
 
   private async createAndAddExercise(name: string): Promise<void> {
-    const id = name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || `exercise-${Date.now()}`;
+    const id = createIdFromName(name);
     const def: ExerciseDefinition = {
       id,
       name,

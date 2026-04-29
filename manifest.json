@@ -1,11 +1,10 @@
 {
-	"id": "obsidian-workout-tracker",
-	"name": "Workout Tracker",
-	"version": "1.0.0",
+	"id": "obsidian-workout-tracker-plus",
+	"name": "Workout Tracker Plus",
+	"version": "0.0.5",
 	"minAppVersion": "0.15.0",
 	"description": "Track your workouts, exercises, and fitness progress in Obsidian",
-	"author": "Your Name",
-	"authorUrl": "https://github.com/yourusername",
-	"fundingUrl": "https://buymeacoffee.com/yourusername",
+	"author": "I-am-Rudi",
+	"authorUrl": "https://github.com/I-am-Rudi",
 	"isDesktopOnly": false
 }

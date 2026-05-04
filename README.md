@@ -1,4 +1,4 @@
-# Obsidian Workout Tracker Plugin
+# Obsidian Workout Journal Plugin
 
 A comprehensive workout tracking plugin for Obsidian that helps you log exercises, track progress, and maintain your fitness routine within your notes.
 
@@ -33,28 +33,28 @@ This plugin will be available in the Obsidian Community Plugins directory once a
 ### Creating a New Workout
 
 1. Click the workout icon in the ribbon, or
-2. Use the command palette: "Workout Tracker: Create New Workout"
+2. Use the command palette: "Workout Journal: Create New Workout"
 3. Fill in workout details and add exercises
 4. Save to create a new workout file with frontmatter
 
 ### Quick Workout Logging
 
-Use "Workout Tracker: Quick Log Workout" to select from predefined workout templates for faster logging.
+Use "Workout Journal: Quick Log Workout" to select from predefined workout templates for faster logging.
 
 ### Viewing Statistics
 
-Use "Workout Tracker: View Workout Statistics" to see comprehensive analytics about your workout progress.
+Use "Workout Journal: View Workout Statistics" to see comprehensive analytics about your workout progress.
 
 ### Editing Existing Workouts
 
 1. Open any workout file created by the plugin
-2. Use "Workout Tracker: Edit Current Workout" command
+2. Use "Workout Journal: Edit Current Workout" command
 3. Modify exercises, sets, or notes
 4. Save to update the frontmatter automatically
 
 ### Exercise Templates
 
-Insert exercise templates directly into your notes using "Workout Tracker: Insert Exercise Template" command.
+Insert exercise templates directly into your notes using "Workout Journal: Insert Exercise Template" command.
 
 ### Workout File Format
 
@@ -109,7 +109,7 @@ Access comprehensive workout statistics including:
 
 ## Configuration
 
-Access plugin settings through Settings → Community Plugins → Workout Tracker:
+Access plugin settings through Settings → Community Plugins → Workout Journal:
 
 - **Default Workout Folder**: Where workout files are saved
 - **Exercise Templates**: Pre-configured exercises with defaults

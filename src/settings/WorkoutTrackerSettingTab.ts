@@ -16,7 +16,7 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
 
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "Workout Tracker Settings" });
+    containerEl.createEl("h2", { text: "Workout Journal Settings" });
 
     new Setting(containerEl)
       .setName("Default Workout Folder")

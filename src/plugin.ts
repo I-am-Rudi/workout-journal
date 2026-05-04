@@ -88,7 +88,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
 
     const ribbonIconEl = this.addRibbonIcon(
       "biceps-flexed",
-      "Workout Tracker",
+      "Workout Journal",
       () => {
         new WorkoutTypeSelectionModal(this.app, this).open();
       }

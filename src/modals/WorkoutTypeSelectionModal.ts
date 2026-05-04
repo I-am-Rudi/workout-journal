@@ -17,7 +17,7 @@ export class WorkoutTypeSelectionModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
 
-    contentEl.createEl("h2", { text: "Workout Tracker" });
+    contentEl.createEl("h2", { text: "Workout Journal" });
 
     new Setting(contentEl)
       .setName("Add New Workout")

@@ -275,15 +275,12 @@ export class WorkoutSessionView extends ItemView {
       cls: `workout-session-set-card${set.completed ? " workout-session-row-completed" : ""}`,
     });
 
-    // Header row: set number | previous | done checkbox + remove button
+    // Header row: set number | target | done checkbox + remove button
     const header = card.createDiv({ cls: "workout-session-set-card-header" });
     header.createEl("span", { text: `Set ${set.setIndex}`, cls: "workout-session-set-card-set-num" });
 
-    const prevText =
-      set.previousWeight !== undefined || set.previousReps !== undefined
-        ? `${set.previousWeight ?? "-"} × ${set.previousReps ?? "-"}`
-        : "-";
-    header.createEl("span", { text: prevText, cls: "workout-session-set-card-prev" });
+    const targetText = `${set.targetWeight ?? "0"} × ${set.targetReps ?? "0"}`;
+    header.createEl("span", { text: targetText, cls: "workout-session-set-card-target" });
 
     const headerRight = header.createDiv({ cls: "workout-session-set-card-header-right" });
     const done = headerRight.createEl("input", { type: "checkbox" });
@@ -301,15 +298,6 @@ export class WorkoutSessionView extends ItemView {
       this.session!.hasRoutineChanges = true;
       onRerender();
     };
-
-    // Target row
-    const targetRow = card.createDiv({ cls: "workout-session-set-card-row" });
-    targetRow.createEl("span", { text: "Target", cls: "workout-session-set-card-label" });
-    this.renderSetEditor(targetRow, set.targetWeight, set.targetReps, (weight, reps) => {
-      set.targetWeight = weight;
-      set.targetReps = reps;
-      this.session!.hasRoutineChanges = true;
-    });
 
     // Actual row
     const actualRow = card.createDiv({ cls: "workout-session-set-card-row" });

@@ -280,7 +280,7 @@ export class WorkoutSessionView extends ItemView {
     header.createEl("span", { text: `Set ${set.setIndex}`, cls: "workout-session-set-card-set-num" });
 
     const targetText = `${set.targetWeight ?? "0"} × ${set.targetReps ?? "0"}`;
-    header.createEl("span", { text: targetText, cls: "workout-session-set-card-prev" });
+    header.createEl("span", { text: targetText, cls: "workout-session-set-card-target" });
 
     const headerRight = header.createDiv({ cls: "workout-session-set-card-header-right" });
     const done = headerRight.createEl("input", { type: "checkbox" });

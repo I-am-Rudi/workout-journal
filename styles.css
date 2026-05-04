@@ -444,7 +444,7 @@
         gap: 8px;
     }
 
-    .workout-session-set-card-prev {
+    .workout-session-set-card-target {
         color: var(--text-muted);
         font-size: 12px;
     }

@@ -511,7 +511,6 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 6px;
     }
 
     .workout-session-set-card-header-right {
@@ -528,19 +527,5 @@
     .workout-session-set-card-set-num {
         font-weight: 600;
         font-size: 13px;
-    }
-
-    .workout-session-set-card-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin: 4px 0;
-    }
-
-    .workout-session-set-card-label {
-        width: 52px;
-        font-size: 11px;
-        color: var(--text-muted);
-        flex-shrink: 0;
     }
 }

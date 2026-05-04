@@ -282,6 +282,11 @@ export class WorkoutSessionView extends ItemView {
     const targetText = `${set.targetWeight ?? "0"} × ${set.targetReps ?? "0"}`;
     header.createEl("span", { text: targetText, cls: "workout-session-set-card-target" });
 
+    this.renderSetEditor(header, set.actualWeight, set.actualReps, (weight, reps) => {
+      set.actualWeight = weight;
+      set.actualReps = reps;
+    });
+
     const headerRight = header.createDiv({ cls: "workout-session-set-card-header-right" });
     const done = headerRight.createEl("input", { type: "checkbox" });
     done.checked = set.completed;
@@ -298,14 +303,6 @@ export class WorkoutSessionView extends ItemView {
       this.session!.hasRoutineChanges = true;
       onRerender();
     };
-
-    // Actual row
-    const actualRow = card.createDiv({ cls: "workout-session-set-card-row" });
-    actualRow.createEl("span", { text: "Actual", cls: "workout-session-set-card-label" });
-    this.renderSetEditor(actualRow, set.actualWeight, set.actualReps, (weight, reps) => {
-      set.actualWeight = weight;
-      set.actualReps = reps;
-    });
   }
 
   private renderSetEditor(

@@ -529,3 +529,7 @@
         font-size: 13px;
     }
 }
+
+.workout-session-bottom-spacer {
+    height: 80px;
+}

@@ -262,6 +262,8 @@ export class WorkoutSessionView extends ItemView {
           new Notice("Workout session cancelled.");
         })
       );
+
+    contentEl.createEl("div", { cls: "workout-session-bottom-spacer" });
   }
 
   private renderSetCard(

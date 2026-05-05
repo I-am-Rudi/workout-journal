@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-workout-journal",
-	"version": "0.0.17",
+	"version": "0.0.18",
 	"description": "Track your workouts, exercises, and fitness progress in Obsidian",
 	"main": "main.js",
 	"scripts": {

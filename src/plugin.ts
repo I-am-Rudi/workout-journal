@@ -587,13 +587,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
       exercises: workout.exercises.map((exercise) => ({
         exerciseId: this.createIdFromName(exercise.name),
         exerciseName: exercise.name,
-        sets: exercise.sets.map((set) => ({
-          reps: set.reps,
-          weight: set.weight,
-          duration: set.duration,
-          distance: set.distance,
-          restTime: set.restTime,
-        })),
+      sets: exercise.sets.map((set) => ({ ...set })),
       })),
       estimatedDuration: workout.duration,
     };

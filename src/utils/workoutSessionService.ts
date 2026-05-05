@@ -17,7 +17,7 @@ export class WorkoutSessionService {
 
   async createSessionFromRoutine(
     routine: RoutineDefinition,
-    options?: { planId?: string; planName?: string; exerciseNotesMap?: Map<string, string> }
+    options?: { planId?: string; planName?: string; exerciseNotesMap?: Map<string, string>; exerciseFilePathMap?: Map<string, string> }
   ): Promise<WorkoutSession> {
     const exercises: WorkoutSessionExercise[] = [];
     for (const exercise of routine.exercises) {
@@ -51,6 +51,7 @@ export class WorkoutSessionService {
         completed: false,
         notes: exercise.notes,
         exerciseNotes: options?.exerciseNotesMap?.get(exercise.exerciseId),
+        exerciseFilePath: options?.exerciseFilePathMap?.get(exercise.exerciseId),
       });
     }
 

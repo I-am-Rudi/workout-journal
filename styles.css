@@ -533,3 +533,75 @@
 .workout-session-bottom-spacer {
     height: 80px;
 }
+
+/* Clickable exercise name button in session card header */
+.workout-session-exercise-name-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-size: var(--h3-size, 1.1em);
+    font-weight: 600;
+    color: var(--text-normal);
+    cursor: pointer;
+    text-align: left;
+    flex: 1;
+    line-height: 1.3;
+    border-radius: 4px;
+    transition: color 0.15s ease;
+}
+
+.workout-session-exercise-name-btn:hover {
+    color: var(--interactive-accent);
+    text-decoration: underline;
+}
+
+/* Exercise note modal */
+.exercise-note-modal .modal-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.exercise-note-modal-title {
+    margin: 0 0 12px 0;
+}
+
+.exercise-note-modal-error {
+    color: var(--text-error);
+}
+
+.exercise-note-modal-textarea {
+    width: 100%;
+    min-height: 240px;
+    resize: vertical;
+    font-family: var(--font-monospace);
+    font-size: 13px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    padding: 10px;
+    box-sizing: border-box;
+    line-height: 1.5;
+}
+
+.exercise-note-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.exercise-note-modal-cancel {
+    background: none;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 6px 16px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.exercise-note-modal-cancel:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}

@@ -2,6 +2,7 @@ import { ItemView, Notice, Platform, Setting, WorkspaceLeaf } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
 import { SessionFinishOptions, WorkoutSession, WorkoutSessionExercise, WorkoutSessionSet } from "../types";
 import { AddSessionExerciseModal } from "../modals/AddSessionExerciseModal";
+import { ExerciseNoteModal } from "../modals/ExerciseNoteModal";
 
 export const WORKOUT_SESSION_VIEW_TYPE = "workout-tracker-session-view";
 
@@ -59,7 +60,19 @@ export class WorkoutSessionView extends ItemView {
 
       // Exercise header with name and management controls
       const cardHeader = card.createDiv({ cls: "workout-session-card-header" });
-      cardHeader.createEl("h3", { text: exercise.exerciseName });
+
+      if (exercise.exerciseFilePath) {
+        const nameBtn = cardHeader.createEl("button", {
+          text: exercise.exerciseName,
+          cls: "workout-session-exercise-name-btn",
+          title: "View / edit exercise note",
+        });
+        nameBtn.onclick = () => {
+          new ExerciseNoteModal(this.app, exercise.exerciseFilePath!, exercise.exerciseName).open();
+        };
+      } else {
+        cardHeader.createEl("h3", { text: exercise.exerciseName });
+      }
 
       const exerciseControls = cardHeader.createDiv({ cls: "workout-session-exercise-controls" });
 

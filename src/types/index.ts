@@ -146,6 +146,7 @@ export interface WorkoutSessionExercise {
   completed: boolean;
   notes?: string;
   exerciseNotes?: string;
+  exerciseFilePath?: string;
 }
 
 export interface WorkoutSession {

@@ -310,12 +310,18 @@ export default class WorkoutTrackerPlugin extends Plugin {
         .filter((def) => def.notes)
         .map((def) => [def.id, def.notes!])
     );
+    const exerciseFilePathMap = new Map(
+      exerciseDefs
+        .filter((def) => def.filePath)
+        .map((def) => [def.id, def.filePath!])
+    );
     const session = await this.workoutSessionService.createSessionFromRoutine(
       resolved.resolved,
       {
         planId: plan?.id,
         planName: plan?.name,
         exerciseNotesMap,
+        exerciseFilePathMap,
       }
     );
     this.activeSession = session;

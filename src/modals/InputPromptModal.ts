@@ -10,12 +10,14 @@ export class InputPromptModal extends Modal {
     app: App,
     label: string,
     placeholder: string,
-    onSubmit: (value: string | null) => void
+    onSubmit: (value: string | null) => void,
+    defaultValue?: string
   ) {
     super(app);
     this.label = label;
     this.placeholder = placeholder;
     this.onSubmit = onSubmit;
+    if (defaultValue) this.value = defaultValue;
   }
 
   onOpen() {
@@ -23,13 +25,14 @@ export class InputPromptModal extends Modal {
     contentEl.empty();
     contentEl.createEl("h2", { text: this.label });
 
-    new Setting(contentEl).addText((text) =>
+    new Setting(contentEl).addText((text) => {
       text
         .setPlaceholder(this.placeholder)
+        .setValue(this.value)
         .onChange((value) => {
           this.value = value;
-        })
-    );
+        });
+    });
 
     new Setting(contentEl)
       .addButton((btn) =>

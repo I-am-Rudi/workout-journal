@@ -179,6 +179,24 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
           })
       );
 
+    new Setting(containerEl)
+      .setName("Default Rest Timer")
+      .setDesc(
+        "Rest timer duration in seconds started automatically when a set is checked off (0 to disable)"
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder("90")
+          .setValue(String(this.plugin.settings.defaultRestTimerSeconds))
+          .onChange(async (value) => {
+            const seconds = parseInt(value);
+            if (!isNaN(seconds) && seconds >= 0) {
+              this.plugin.settings.defaultRestTimerSeconds = seconds;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
     containerEl.createEl("h3", { text: "Migration" });
     new Setting(containerEl)
       .setName("Template Migration Status")

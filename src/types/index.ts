@@ -25,6 +25,7 @@ export interface WorkoutTrackerSettings {
   autoSyncDelayMs: number;
   dateFormat: string;
   weightUnit: "kg" | "lb";
+  defaultRestTimerSeconds: number;
   migration: MigrationState;
   noteTemplates: NoteContentTemplates;
 }
@@ -162,6 +163,7 @@ export interface WorkoutSessionExercise {
   notes?: string;
   exerciseNotes?: string;
   exerciseFilePath?: string;
+  restTimerSeconds?: number;
 }
 
 export interface WorkoutSession {

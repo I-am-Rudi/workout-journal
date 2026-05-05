@@ -9,6 +9,8 @@ export const WORKOUT_SESSION_VIEW_TYPE = "workout-tracker-session-view";
 export class WorkoutSessionView extends ItemView {
   plugin: WorkoutTrackerPlugin;
   session: WorkoutSession | null = null;
+  private timerIntervals: Map<number, ReturnType<typeof setInterval>> = new Map();
+  private timerRemaining: Map<number, number> = new Map();
 
   constructor(leaf: WorkspaceLeaf, plugin: WorkoutTrackerPlugin) {
     super(leaf);
@@ -29,6 +31,8 @@ export class WorkoutSessionView extends ItemView {
   }
 
   async onClose() {
+    this.timerIntervals.forEach((id) => clearInterval(id));
+    this.timerIntervals.clear();
     this.contentEl.empty();
   }
 
@@ -38,6 +42,11 @@ export class WorkoutSessionView extends ItemView {
   }
 
   private render() {
+    // Stop all running timers before rebuilding the DOM
+    this.timerIntervals.forEach((id) => clearInterval(id));
+    this.timerIntervals.clear();
+    this.timerRemaining.clear();
+
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("workout-session-view");
@@ -73,6 +82,16 @@ export class WorkoutSessionView extends ItemView {
       } else {
         cardHeader.createEl("h3", { text: exercise.exerciseName });
       }
+
+      // Timer button – shows current duration and toggles the inline editor
+      const timerDuration = exercise.restTimerSeconds !== undefined
+        ? exercise.restTimerSeconds
+        : this.plugin.settings.defaultRestTimerSeconds;
+      const timerBtn = cardHeader.createEl("button", {
+        text: `⏱ ${timerDuration}s`,
+        cls: "workout-session-timer-btn",
+        title: "Edit rest timer for this exercise",
+      });
 
       const exerciseControls = cardHeader.createDiv({ cls: "workout-session-exercise-controls" });
 
@@ -124,6 +143,66 @@ export class WorkoutSessionView extends ItemView {
         this.render();
       };
 
+      // Inline timer editor (shown when timer button is clicked)
+      const timerEditor = card.createDiv({ cls: "workout-session-timer-editor" });
+      timerEditor.style.display = "none";
+      timerEditor.createEl("label", { text: "Rest timer (s):", cls: "workout-session-timer-label" });
+      const timerInput = timerEditor.createEl("input", {
+        type: "number",
+        cls: "workout-session-timer-input",
+      });
+      timerInput.min = "0";
+      timerInput.max = "3600";
+      timerInput.value = String(timerDuration);
+      const timerSaveBtn = timerEditor.createEl("button", {
+        text: "✓",
+        cls: "workout-session-timer-ok",
+        title: "Save",
+      });
+      const timerCancelBtn = timerEditor.createEl("button", {
+        text: "✗",
+        cls: "workout-session-timer-cancel",
+        title: "Cancel",
+      });
+
+      const saveTimer = () => {
+        const val = parseInt(timerInput.value);
+        if (!isNaN(val) && val >= 0) {
+          exercise.restTimerSeconds = val;
+          timerBtn.textContent = `⏱ ${val}s`;
+        }
+        timerEditor.style.display = "none";
+      };
+      timerSaveBtn.onclick = saveTimer;
+      timerCancelBtn.onclick = () => { timerEditor.style.display = "none"; };
+      timerInput.addEventListener("keydown", (ev: KeyboardEvent) => {
+        if (ev.key === "Enter") saveTimer();
+        if (ev.key === "Escape") timerEditor.style.display = "none";
+      });
+
+      timerBtn.onclick = () => {
+        if (timerEditor.style.display === "none") {
+          timerInput.value = String(
+            exercise.restTimerSeconds !== undefined
+              ? exercise.restTimerSeconds
+              : this.plugin.settings.defaultRestTimerSeconds
+          );
+          timerEditor.style.display = "flex";
+          timerInput.focus();
+          timerInput.select();
+        } else {
+          timerEditor.style.display = "none";
+        }
+      };
+
+      // Timer countdown display (shown while a rest timer is running)
+      const timerDisplay = card.createDiv({ cls: "workout-session-timer-display" });
+      timerDisplay.style.display = "none";
+      timerDisplay.title = "Click to stop timer";
+      timerDisplay.addEventListener("click", () => {
+        this.stopRestTimer(exerciseIndex, timerDisplay);
+      });
+
       // Exercise-level notes (global, from the exercise definition) – read-only
       if (exercise.exerciseNotes) {
         const noteBlock = card.createDiv({ cls: "workout-session-exercise-notes" });
@@ -137,7 +216,7 @@ export class WorkoutSessionView extends ItemView {
       if (Platform.isMobile) {
         const setsWrapper = card.createDiv({ cls: "workout-session-sets-mobile" });
         exercise.sets.forEach((set, index) => {
-          this.renderSetCard(setsWrapper, set, index, exercise, () => this.render());
+          this.renderSetCard(setsWrapper, set, index, exercise, exerciseIndex, timerDisplay, () => this.render());
         });
       } else {
         const tableWrapper = card.createDiv({ cls: "workout-session-table-wrapper" });
@@ -180,6 +259,16 @@ export class WorkoutSessionView extends ItemView {
             set.completed = done.checked;
             exercise.completed = exercise.sets.every((exerciseSet) => exerciseSet.completed);
             row.toggleClass("workout-session-row-completed", set.completed);
+            if (done.checked) {
+              const dur = exercise.restTimerSeconds !== undefined
+                ? exercise.restTimerSeconds
+                : this.plugin.settings.defaultRestTimerSeconds;
+              if (dur > 0) {
+                this.startRestTimer(exerciseIndex, dur, timerDisplay);
+              }
+            } else {
+              this.stopRestTimer(exerciseIndex, timerDisplay);
+            }
           };
 
           const removeCell = row.createEl("td");
@@ -284,6 +373,8 @@ export class WorkoutSessionView extends ItemView {
     set: WorkoutSessionSet,
     index: number,
     exercise: WorkoutSessionExercise,
+    exerciseIndex: number,
+    timerDisplay: HTMLElement,
     onRerender: () => void
   ) {
     const card = container.createDiv({
@@ -309,6 +400,16 @@ export class WorkoutSessionView extends ItemView {
       set.completed = done.checked;
       exercise.completed = exercise.sets.every((s) => s.completed);
       card.toggleClass("workout-session-row-completed", set.completed);
+      if (done.checked) {
+        const dur = exercise.restTimerSeconds !== undefined
+          ? exercise.restTimerSeconds
+          : this.plugin.settings.defaultRestTimerSeconds;
+        if (dur > 0) {
+          this.startRestTimer(exerciseIndex, dur, timerDisplay);
+        }
+      } else {
+        this.stopRestTimer(exerciseIndex, timerDisplay);
+      }
     };
 
     const removeBtn = headerRight.createEl("button", { text: "✕", cls: "workout-session-remove-set" });
@@ -349,6 +450,50 @@ export class WorkoutSessionView extends ItemView {
     weightInput.onchange = update;
     repsInput.oninput = update;
     repsInput.onchange = update;
+  }
+
+  private startRestTimer(exerciseIndex: number, duration: number, display: HTMLElement): void {
+    // Stop any existing timer for this exercise first
+    const existing = this.timerIntervals.get(exerciseIndex);
+    if (existing !== undefined) {
+      clearInterval(existing);
+      this.timerIntervals.delete(exerciseIndex);
+    }
+
+    this.timerRemaining.set(exerciseIndex, duration);
+
+    const tick = () => {
+      const remaining = this.timerRemaining.get(exerciseIndex);
+      if (remaining === undefined || remaining <= 0) {
+        clearInterval(this.timerIntervals.get(exerciseIndex));
+        this.timerIntervals.delete(exerciseIndex);
+        this.timerRemaining.delete(exerciseIndex);
+        display.style.display = "none";
+        display.textContent = "";
+        new Notice("🏋️ Rest complete! Time for the next set.");
+        return;
+      }
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      display.style.display = "flex";
+      display.textContent = `⏱ ${mins}:${secs.toString().padStart(2, "0")} — tap to stop`;
+      this.timerRemaining.set(exerciseIndex, remaining - 1);
+    };
+
+    tick(); // Show the initial value immediately
+    const intervalId = setInterval(tick, 1000);
+    this.timerIntervals.set(exerciseIndex, intervalId);
+  }
+
+  private stopRestTimer(exerciseIndex: number, display: HTMLElement): void {
+    const id = this.timerIntervals.get(exerciseIndex);
+    if (id !== undefined) {
+      clearInterval(id);
+      this.timerIntervals.delete(exerciseIndex);
+    }
+    this.timerRemaining.delete(exerciseIndex);
+    display.style.display = "none";
+    display.textContent = "";
   }
 
   async finishWithOptions(options: SessionFinishOptions): Promise<void> {

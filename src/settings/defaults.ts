@@ -48,6 +48,8 @@ export const DEFAULT_SETTINGS: WorkoutTrackerSettings = {
   autoSyncDelayMs: 2000,
   dateFormat: "YYYY-MM-DD",
   weightUnit: "lb",
+  // Default rest timer in seconds shown after checking off a set (0 = disabled)
+  defaultRestTimerSeconds: 90,
   migration: {
     completed: false,
     exerciseCount: 0,

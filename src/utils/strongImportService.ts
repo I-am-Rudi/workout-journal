@@ -96,7 +96,14 @@ function mapExerciseType(
 function deriveIdFromStrongDate(dateStr: string): string {
   // dateStr format: "YYYY-MM-DD HH:MM:SS"
   const ms = Date.parse(dateStr.replace(" ", "T"));
-  return !isNaN(ms) ? ms.toString(36) : Date.now().toString(36);
+  if (!isNaN(ms)) return ms.toString(36);
+  // Deterministic fallback: hash the raw string so re-imports of the same
+  // invalid date always produce the same ID.
+  let hash = 0;
+  for (let i = 0; i < dateStr.length; i++) {
+    hash = (Math.imul(31, hash) + dateStr.charCodeAt(i)) | 0;
+  }
+  return `fallback-${(hash >>> 0).toString(36)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -153,7 +160,9 @@ export function parseStrongWorkoutsCsv(csvContent: string): Workout[] {
 
     const dateTime = iDate >= 0 ? cols[iDate] ?? "" : "";
     const workoutName = iWorkoutName >= 0 ? cols[iWorkoutName] ?? "" : "";
-    const key = `${dateTime}|||${workoutName}`;
+    // Use \x00 as separator — guaranteed not to appear in CSV field values
+    // (Strong never emits null bytes), so this key is collision-free.
+    const key = `${dateTime}\x00${workoutName}`;
 
     if (!workoutMap.has(key)) {
       workoutOrder.push(key);

@@ -621,6 +621,7 @@
     line-height: 1.4;
     flex-shrink: 0;
     white-space: nowrap;
+    margin-left: 4px;
     margin-right: 4px;
 }
 

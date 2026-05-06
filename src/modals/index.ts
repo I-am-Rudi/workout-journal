@@ -12,3 +12,4 @@ export { SessionFinishModal } from "./SessionFinishModal";
 export { InputPromptModal } from "./InputPromptModal";
 export { AddSessionExerciseModal } from "./AddSessionExerciseModal";
 export { StrongImportModal } from "./StrongImportModal";
+export { ConfirmModal } from "./ConfirmModal";

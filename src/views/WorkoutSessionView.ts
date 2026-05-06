@@ -3,6 +3,7 @@ import WorkoutTrackerPlugin from "../plugin";
 import { SessionFinishOptions, WorkoutSession, WorkoutSessionExercise, WorkoutSessionSet } from "../types";
 import { AddSessionExerciseModal } from "../modals/AddSessionExerciseModal";
 import { ExerciseNoteModal } from "../modals/ExerciseNoteModal";
+import { ConfirmModal } from "../modals/ConfirmModal";
 
 export const WORKOUT_SESSION_VIEW_TYPE = "workout-tracker-session-view";
 
@@ -358,8 +359,14 @@ export class WorkoutSessionView extends ItemView {
           })
       )
       .addButton((btn) =>
-        btn.setButtonText("Cancel Session").setWarning().onClick(async () => {
-          await this.plugin.cancelActiveSession();
+        btn.setButtonText("Cancel Session").setWarning().onClick(() => {
+          new ConfirmModal(
+            this.plugin.app,
+            "Are you sure you want to cancel this session? All progress will be lost.",
+            async () => {
+              await this.plugin.cancelActiveSession();
+            }
+          ).open();
         })
       );
 

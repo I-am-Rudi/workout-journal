@@ -1,8 +1,5 @@
 import {
   WorkoutTrackerSettings,
-  ExerciseTemplate,
-  WorkoutTemplate,
-  NoteContentTemplates,
 } from "../types";
 
 export const DEFAULT_SETTINGS: WorkoutTrackerSettings = {

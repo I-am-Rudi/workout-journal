@@ -1,5 +1,5 @@
 import { App, Modal, Notice, Setting } from "obsidian";
-import { Exercise, ExerciseSet } from "../types";
+import { Exercise } from "../types";
 import WorkoutTrackerPlugin from "../plugin";
 
 export class ExerciseModal extends Modal {

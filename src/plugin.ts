@@ -1,5 +1,4 @@
 import {
-  App,
   Editor,
   EventRef,
   MarkdownFileInfo,
@@ -24,7 +23,7 @@ import { WorkoutFileService } from "./utils/workoutFileService";
 import { DefinitionFileService } from "./utils/definitionFileService";
 import { PerformanceCsvService } from "./utils/performanceCsvService";
 import { WorkoutSessionService } from "./utils/workoutSessionService";
-import { generateId, createIdFromName } from "./utils/idUtils";
+import { createIdFromName } from "./utils/idUtils";
 import {
   ExerciseTemplateModal,
   InputPromptModal,

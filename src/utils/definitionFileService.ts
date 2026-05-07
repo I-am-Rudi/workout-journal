@@ -1,7 +1,6 @@
 import {
   App,
   normalizePath,
-  Notice,
   TFile,
   parseYaml,
   stringifyYaml,
@@ -126,16 +125,16 @@ export class DefinitionFileService {
         return null;
       }
       return {
-        id: frontmatter['wj-id'] || file.basename,
-        name: frontmatter['wj-name'] || file.basename,
-        type: frontmatter['wj-exercise-type'] || "strength",
-        muscleGroups: frontmatter['wj-muscle-groups'] || [],
-        notes: frontmatter['wj-notes'],
-        defaultSets: frontmatter['wj-default-sets'],
-        defaultReps: frontmatter['wj-default-reps'],
-        defaultWeight: frontmatter['wj-default-weight'],
-        defaultDuration: frontmatter['wj-default-duration'],
-        defaultDistance: frontmatter['wj-default-distance'],
+        id: this.asString(frontmatter['wj-id']) || file.basename,
+        name: this.asString(frontmatter['wj-name']) || file.basename,
+        type: this.asExerciseType(frontmatter['wj-exercise-type']) || "strength",
+        muscleGroups: this.asStringArray(frontmatter['wj-muscle-groups']),
+        notes: this.asString(frontmatter['wj-notes']),
+        defaultSets: this.asNumber(frontmatter['wj-default-sets']),
+        defaultReps: this.asNumber(frontmatter['wj-default-reps']),
+        defaultWeight: this.asNumber(frontmatter['wj-default-weight']),
+        defaultDuration: this.asNumber(frontmatter['wj-default-duration']),
+        defaultDistance: this.asNumber(frontmatter['wj-default-distance']),
         filePath: file.path,
       };
     } catch (error) {
@@ -151,12 +150,14 @@ export class DefinitionFileService {
         return null;
       }
       return {
-        id: frontmatter['wj-id'] || file.basename,
-        name: frontmatter['wj-name'] || file.basename,
-        exercises: (frontmatter['wj-exercises'] || []) as RoutineExerciseEntry[],
-        estimatedDuration: frontmatter['wj-estimated-duration'],
-        notes: frontmatter['wj-notes'],
-        planTags: frontmatter['wj-plan-tags'] || [],
+        id: this.asString(frontmatter['wj-id']) || file.basename,
+        name: this.asString(frontmatter['wj-name']) || file.basename,
+        exercises: Array.isArray(frontmatter['wj-exercises'])
+          ? (frontmatter['wj-exercises'] as RoutineExerciseEntry[])
+          : [],
+        estimatedDuration: this.asNumber(frontmatter['wj-estimated-duration']),
+        notes: this.asString(frontmatter['wj-notes']),
+        planTags: this.asStringArray(frontmatter['wj-plan-tags']),
         filePath: file.path,
       };
     } catch (error) {
@@ -172,10 +173,12 @@ export class DefinitionFileService {
         return null;
       }
       return {
-        id: frontmatter['wj-id'] || file.basename,
-        name: frontmatter['wj-name'] || file.basename,
-        routines: (frontmatter['wj-routines'] || []) as WorkoutPlanRoutineEntry[],
-        notes: frontmatter['wj-notes'],
+        id: this.asString(frontmatter['wj-id']) || file.basename,
+        name: this.asString(frontmatter['wj-name']) || file.basename,
+        routines: Array.isArray(frontmatter['wj-routines'])
+          ? (frontmatter['wj-routines'] as WorkoutPlanRoutineEntry[])
+          : [],
+        notes: this.asString(frontmatter['wj-notes']),
         filePath: file.path,
       };
     } catch (error) {
@@ -310,13 +313,36 @@ export class DefinitionFileService {
       );
   }
 
-  private async readFrontmatter(file: TFile): Promise<any | null> {
+  private async readFrontmatter(file: TFile): Promise<Record<string, unknown> | null> {
     const content = await this.app.vault.read(file);
     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
     if (!frontmatterMatch) {
       return null;
     }
-    return parseYaml(frontmatterMatch[1]);
+    const parsed = parseYaml(frontmatterMatch[1]);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  }
+
+  private asString(value: unknown): string | undefined {
+    return typeof value === "string" ? value : undefined;
+  }
+
+  private asNumber(value: unknown): number | undefined {
+    return typeof value === "number" ? value : undefined;
+  }
+
+  private asStringArray(value: unknown): string[] {
+    return Array.isArray(value)
+      ? value.filter((entry): entry is string => typeof entry === "string")
+      : [];
+  }
+
+  private asExerciseType(
+    value: unknown
+  ): ExerciseDefinition["type"] | undefined {
+    return value === "strength" || value === "cardio" ? value : undefined;
   }
 
   private renderExerciseDefinition(def: ExerciseDefinition): string {

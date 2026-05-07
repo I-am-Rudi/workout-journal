@@ -1,5 +1,5 @@
 import { App, Modal, Notice, Setting, TFile } from "obsidian";
-import { Workout, Exercise } from "../types";
+import { Workout } from "../types";
 import { WorkoutFileService } from "../utils/workoutFileService";
 import { ExerciseModal } from "./ExerciseModal";
 import WorkoutTrackerPlugin from "../plugin";

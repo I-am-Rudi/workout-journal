@@ -86,14 +86,37 @@ export default class WorkoutTrackerPlugin extends Plugin {
     );
     this.registerEvent(this.fileModifyEventRef);
 
-    const ribbonIconEl = this.addRibbonIcon(
-      "biceps-flexed",
-      "Workout Journal",
-      () => {
-        new WorkoutTypeSelectionModal(this.app, this).open();
+    const openWorkoutTypeModal = () => {
+      new WorkoutTypeSelectionModal(this.app, this).open();
+    };
+    let ribbonIcon: ReturnType<typeof this.addRibbonIcon> | null = null;
+    try {
+      ribbonIcon = this.addRibbonIcon(
+        "biceps-flexed",
+        "Workout Journal",
+        openWorkoutTypeModal
+      );
+    } catch (error) {
+      console.warn(
+        "Workout Journal: icon 'biceps-flexed' unavailable, falling back to 'calendar'.",
+        error
+      );
+      try {
+        ribbonIcon = this.addRibbonIcon(
+          "calendar",
+          "Workout Journal",
+          openWorkoutTypeModal
+        );
+      } catch (fallbackError) {
+        console.error(
+          "Workout Journal: unable to register ribbon icon; continuing without ribbon icon.",
+          fallbackError
+        );
       }
-    );
-    ribbonIconEl.addClass("workout-tracker-ribbon-class");
+    }
+    if (ribbonIcon) {
+      ribbonIcon.addClass("workout-tracker-ribbon-class");
+    }
 
     this.app.workspace.onLayoutReady(async () => {
       await this.definitionService.ensureFolders();

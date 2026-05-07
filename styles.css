@@ -529,17 +529,30 @@
     font-weight: 600;
 }
 
-/* Routine-specific notes setting within the exercise card */
-.workout-session-routine-notes-setting {
-    border-top: 1px solid var(--background-modifier-border);
-    margin-top: 4px;
-    padding-top: 4px;
+/* Routine-specific note banner within active session cards */
+.workout-session-routine-note-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 5px 8px;
+    margin: 4px 0 8px;
+    background: color-mix(in srgb, var(--color-yellow) 30%, transparent);
+    border-left: 3px solid var(--color-yellow);
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text-normal);
+    line-height: 1.35;
 }
 
-.workout-session-routine-notes-setting textarea {
-    min-height: 48px;
-    font-size: 13px;
-    resize: vertical;
+.workout-session-routine-note-icon {
+    flex: 0 0 auto;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.workout-session-routine-note-text {
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 /* Mobile layout: set cards (480px and below) */

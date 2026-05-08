@@ -274,9 +274,20 @@
 }
 
 /* Strong-like workout session tracker */
+.workspace-leaf-content[data-type="workout-tracker-session-view"] .view-content {
+    overflow-x: hidden;
+}
+
 .workout-session-view {
     padding: 12px;
     overflow-x: hidden;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.workout-session-view .setting-item-control {
+    max-width: 100%;
+    flex-wrap: wrap;
 }
 
 .workout-session-title {
@@ -748,7 +759,7 @@
     border-radius: 4px;
     padding: 2px 8px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 13px !important;
     line-height: 1.4;
 }
 
@@ -837,7 +848,7 @@
 
 .exercise-note-modal-save,
 .exercise-note-modal-cancel {
-    font-size: 13px;
+    font-size: 13px !important;
     line-height: 1.4;
     white-space: nowrap;
     max-width: 100%;

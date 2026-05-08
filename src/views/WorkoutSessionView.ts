@@ -117,7 +117,7 @@ export class WorkoutSessionView extends ItemView {
         const nameBtn = cardHeader.createEl("button", {
           text: exercise.exerciseName,
           cls: "workout-session-exercise-name-btn",
-          title: "View / edit exercise note • press and hold for 2 seconds to drag",
+          title: "View or edit exercise note. Press and hold for 2 seconds to drag.",
         });
         nameBtn.onclick = () => {
           if (suppressExerciseNoteClick) {
@@ -198,7 +198,9 @@ export class WorkoutSessionView extends ItemView {
         card.removeClass("workout-session-card-drop-target");
         const dataTransferIndex = event.dataTransfer?.getData("text/plain");
         const parsedDataTransferIndex =
-          dataTransferIndex !== "" ? Number.parseInt(dataTransferIndex, 10) : Number.NaN;
+          dataTransferIndex != null && dataTransferIndex !== ""
+            ? Number.parseInt(dataTransferIndex, 10)
+            : Number.NaN;
         const sourceIndex = Number.isNaN(parsedDataTransferIndex)
           ? draggedExerciseIndex
           : parsedDataTransferIndex;
@@ -206,7 +208,8 @@ export class WorkoutSessionView extends ItemView {
         const exercises = session.exercises;
         if (sourceIndex < 0 || sourceIndex >= exercises.length) return;
         const cardBounds = card.getBoundingClientRect();
-        const dropAfter = event.clientY >= cardBounds.top + cardBounds.height * WorkoutSessionView.DROP_AFTER_THRESHOLD_RATIO;
+        const midpoint = cardBounds.top + cardBounds.height * WorkoutSessionView.DROP_AFTER_THRESHOLD_RATIO;
+        const dropAfter = event.clientY >= midpoint;
         let insertionIndex = exerciseIndex + (dropAfter ? 1 : 0);
         const [movedExercise] = exercises.splice(sourceIndex, 1);
         if (sourceIndex < insertionIndex) insertionIndex -= 1;

@@ -407,7 +407,7 @@ export class WorkoutSessionView extends ItemView {
               session.exercises.push(newExercise);
               session.hasRoutineChanges = true;
               this.render();
-            }).open();
+            }, this.plugin.performanceCsvService, session.routineId).open();
           })();
         })
       );

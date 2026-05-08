@@ -139,7 +139,7 @@ export class PerformanceCsvService {
             completed: "true",
             recordType: "imported",
             notes: "",
-            setType: "",
+            setType: set.setType || "",
           })
         );
       }
@@ -209,6 +209,43 @@ export class PerformanceCsvService {
     const reps = this.parseNumber(latest.targetReps || latest.actualReps);
     const weight = this.parseNumber(latest.targetWeight || latest.actualWeight);
     return { reps, weight };
+  }
+
+  async getLatestSetsForExercise(
+    routineId: string | undefined,
+    exerciseId: string
+  ): Promise<Array<{ setIndex: number; setType?: string; reps?: number; weight?: number }> | null> {
+    const rows = await this.readRows();
+    const validTypes = new Set(["session", "target_update", "imported"]);
+
+    const tryFind = (filterByRoutine: boolean) => {
+      const matching = rows.filter(
+        (row) =>
+          row.exerciseId === exerciseId &&
+          validTypes.has(row.recordType) &&
+          (!filterByRoutine || !routineId || row.routineId === routineId)
+      );
+      if (!matching.length) return null;
+
+      // Find the actual latest timestamp (rows may not be sorted by timestamp).
+      const latestTimestamp = matching.reduce(
+        (latest, row) => (row.timestamp > latest ? row.timestamp : latest),
+        matching[0].timestamp
+      );
+      const sessionRows = matching.filter((row) => row.timestamp === latestTimestamp);
+
+      return sessionRows
+        .map((row) => ({
+          setIndex: Number(row.setIndex),
+          setType: row.setType || undefined,
+          reps: this.parseNumber(row.targetReps || row.actualReps),
+          weight: this.parseNumber(row.targetWeight || row.actualWeight),
+        }))
+        .sort((a, b) => a.setIndex - b.setIndex);
+    };
+
+    // Try routine-specific history first, then fall back to any routine.
+    return tryFind(true) ?? tryFind(false);
   }
 
   private async readRows(): Promise<PerformanceCsvRow[]> {

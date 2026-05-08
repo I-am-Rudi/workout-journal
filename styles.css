@@ -279,8 +279,15 @@
     overflow-x: hidden;
 }
 
+.workout-session-title {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
 .workout-session-meta {
     color: var(--text-muted);
+    font-size: 13px;
     margin-top: -4px;
     margin-bottom: 12px;
     word-break: break-word;
@@ -359,7 +366,7 @@
     margin: 0;
     flex: 1;
     min-width: 0;
-    font-size: calc(var(--h3-size, 1.1em) * 0.5);
+    font-size: 16px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -635,13 +642,27 @@
 }
 
 /* Clickable exercise name button in session card header */
+.workout-session-exercise-name,
+.workout-session-exercise-name-btn {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.workout-session-exercise-name {
+    color: var(--text-normal);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .workout-session-exercise-name-btn {
     background: none;
     border: none;
     padding: 0;
     margin: 0;
-    font-size: calc(var(--h3-size, 1.1em) * 0.5);
-    font-weight: 600;
     color: var(--text-normal);
     cursor: pointer;
     text-align: left;
@@ -811,7 +832,7 @@
     justify-content: center;
     min-width: 1.8em;
     padding: 2px 6px;
-    font-size: 0.85em;
+    font-size: 12px;
     font-weight: 600;
     border-radius: 4px;
     border: 1px solid;

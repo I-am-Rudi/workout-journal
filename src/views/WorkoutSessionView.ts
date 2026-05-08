@@ -76,6 +76,7 @@ export class WorkoutSessionView extends ItemView {
     this.timerRemaining.clear();
 
     const { contentEl } = this;
+    const previousScrollTop = contentEl.scrollTop;
     contentEl.empty();
     contentEl.addClass("workout-session-view");
 
@@ -455,6 +456,7 @@ export class WorkoutSessionView extends ItemView {
       );
 
     contentEl.createEl("div", { cls: "workout-session-bottom-spacer" });
+    contentEl.scrollTop = previousScrollTop;
   }
 
   private renderSetCard(

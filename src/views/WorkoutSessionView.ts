@@ -109,21 +109,25 @@ export class WorkoutSessionView extends ItemView {
       // Exercise header with name and management controls
       const cardHeader = card.createDiv({ cls: "workout-session-card-header" });
       let exerciseTitleEl: HTMLElement;
-      let suppressExerciseTitleClick = false;
+      let markNextTitleClickAsHandled: (() => void) | null = null;
       let dragLongPressTimeout: ReturnType<typeof setTimeout> | null = null;
 
       if (exercise.exerciseFilePath) {
+        let suppressExerciseNoteClick = false;
         const nameBtn = cardHeader.createEl("button", {
           text: exercise.exerciseName,
           cls: "workout-session-exercise-name-btn",
           title: "View / edit exercise note • press and hold for 2 seconds to drag",
         });
         nameBtn.onclick = () => {
-          if (suppressExerciseTitleClick) {
-            suppressExerciseTitleClick = false;
+          if (suppressExerciseNoteClick) {
+            suppressExerciseNoteClick = false;
             return;
           }
           new ExerciseNoteModal(this.app, exercise.exerciseFilePath, exercise.exerciseName).open();
+        };
+        markNextTitleClickAsHandled = () => {
+          suppressExerciseNoteClick = true;
         };
         exerciseTitleEl = nameBtn;
       } else {
@@ -144,7 +148,7 @@ export class WorkoutSessionView extends ItemView {
         }
       };
       const enableDragMode = () => {
-        suppressExerciseTitleClick = true;
+        markNextTitleClickAsHandled?.();
         card.draggable = true;
         card.addClass("workout-session-card-drag-enabled");
       };
@@ -193,7 +197,10 @@ export class WorkoutSessionView extends ItemView {
         event.preventDefault();
         card.removeClass("workout-session-card-drop-target");
         const dataTransferIndex = event.dataTransfer?.getData("text/plain");
-        const sourceIndex = dataTransferIndex ? parseInt(dataTransferIndex, 10) : draggedExerciseIndex;
+        const parsedDataTransferIndex = dataTransferIndex !== "" && dataTransferIndex !== undefined
+          ? parseInt(dataTransferIndex, 10)
+          : null;
+        const sourceIndex = parsedDataTransferIndex ?? draggedExerciseIndex;
         if (sourceIndex === null || Number.isNaN(sourceIndex) || sourceIndex === exerciseIndex) return;
         const exercises = session.exercises;
         if (sourceIndex < 0 || sourceIndex >= exercises.length) return;

@@ -311,6 +311,10 @@ export interface StrongImportResult {
   errors: string[];
 }
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 export interface WorkoutsSummary {
   uniqueExerciseCount: number;
   dateRange: { earliest: string; latest: string } | null;
@@ -367,7 +371,7 @@ export class StrongImportService {
           }
         } catch (err) {
           result.errors.push(
-            `Workout "${workout.name}" (${workout.date}): ${(err as Error).message}`
+            `Workout "${workout.name}" (${workout.date}): ${getErrorMessage(err)}`
           );
         }
       }
@@ -378,7 +382,7 @@ export class StrongImportService {
           await this.performanceCsvService.appendImportedWorkout(workout);
         } catch (err) {
           result.errors.push(
-            `CSV for "${workout.name}" (${workout.date}): ${(err as Error).message}`
+            `CSV for "${workout.name}" (${workout.date}): ${getErrorMessage(err)}`
           );
         }
       }
@@ -392,7 +396,7 @@ export class StrongImportService {
           result.exercisesImported++;
         } catch (err) {
           result.errors.push(
-            `Exercise "${def.name}": ${(err as Error).message}`
+            `Exercise "${def.name}": ${getErrorMessage(err)}`
           );
         }
       }

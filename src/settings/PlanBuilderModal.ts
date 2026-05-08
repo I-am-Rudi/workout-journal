@@ -51,9 +51,9 @@ export class PlanBuilderModal extends Modal {
       let pickedRoutineId = this.availableRoutines[0].id;
 
       pickerSetting.addDropdown((dropdown) => {
-        this.availableRoutines.forEach((r) => {
-          dropdown.addOption(r.id, r.name);
-        });
+        for (const routine of this.availableRoutines) {
+          dropdown.addOption(routine.id, routine.name);
+        }
         dropdown.setValue(pickedRoutineId);
         dropdown.onChange((value) => {
           pickedRoutineId = value;

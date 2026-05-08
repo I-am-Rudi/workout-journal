@@ -281,7 +281,10 @@ export class WorkoutSessionView extends ItemView {
           text: "📝 Exercise note: ",
           cls: "workout-session-exercise-notes-label",
         });
-        noteBlock.createEl("span", { text: exercise.exerciseNotes });
+        noteBlock.createEl("span", {
+          text: exercise.exerciseNotes,
+          cls: "workout-session-exercise-notes-content",
+        });
       }
 
       if (Platform.isMobile) {
@@ -415,10 +418,20 @@ export class WorkoutSessionView extends ItemView {
     new Setting(contentEl)
       .setName("Workout notes")
       .addTextArea((text) =>
-        text.setValue(session.notes || "").onChange((value) => {
-          session.notes = value;
-        })
+        text
+          .setValue(session.notes || "")
+          .setPlaceholder("Add workout notes…")
+          .onChange((value) => {
+            session.notes = value;
+          })
       );
+    const workoutNotesTextArea = contentEl.querySelector(
+      ".setting-item:last-of-type textarea"
+    ) as HTMLTextAreaElement | null;
+    if (workoutNotesTextArea) {
+      workoutNotesTextArea.addClass("workout-session-workout-notes");
+      workoutNotesTextArea.rows = 4;
+    }
 
     new Setting(contentEl)
       .addButton((btn) =>

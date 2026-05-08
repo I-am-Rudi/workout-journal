@@ -227,8 +227,11 @@ export class PerformanceCsvService {
       );
       if (!matching.length) return null;
 
-      // Find the latest timestamp and collect all rows from that session.
-      const latestTimestamp = matching[matching.length - 1].timestamp;
+      // Find the actual latest timestamp (rows may not be sorted by timestamp).
+      const latestTimestamp = matching.reduce(
+        (latest, row) => (row.timestamp > latest ? row.timestamp : latest),
+        matching[0].timestamp
+      );
       const sessionRows = matching.filter((row) => row.timestamp === latestTimestamp);
 
       return sessionRows

@@ -12,6 +12,7 @@ export class WorkoutSessionView extends ItemView {
   session: WorkoutSession | null = null;
   private timerIntervals: Map<number, ReturnType<typeof setInterval>> = new Map();
   private timerRemaining: Map<number, number> = new Map();
+  private timerEndTimestamps: Map<number, number> = new Map();
   private feedbackAudioContext: AudioContext | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: WorkoutTrackerPlugin) {
@@ -35,6 +36,8 @@ export class WorkoutSessionView extends ItemView {
   async onClose(): Promise<void> {
     this.timerIntervals.forEach((intervalId) => clearInterval(intervalId));
     this.timerIntervals.clear();
+    this.timerRemaining.clear();
+    this.timerEndTimestamps.clear();
     if (this.feedbackAudioContext) {
       void this.feedbackAudioContext.close();
       this.feedbackAudioContext = null;
@@ -74,6 +77,7 @@ export class WorkoutSessionView extends ItemView {
     this.timerIntervals.forEach((id) => clearInterval(id));
     this.timerIntervals.clear();
     this.timerRemaining.clear();
+    this.timerEndTimestamps.clear();
 
     const { contentEl } = this;
     const previousScrollTop = contentEl.scrollTop;
@@ -573,13 +577,23 @@ export class WorkoutSessionView extends ItemView {
     }
 
     this.timerRemaining.set(exerciseIndex, duration);
+    this.timerEndTimestamps.set(exerciseIndex, Date.now() + (duration * 1000));
 
     const tick = () => {
-      const remaining = this.timerRemaining.get(exerciseIndex);
-      if (remaining === undefined || remaining < 0) {
-        clearInterval(this.timerIntervals.get(exerciseIndex));
+      const endTimestamp = this.timerEndTimestamps.get(exerciseIndex);
+      if (endTimestamp === undefined) {
+        return;
+      }
+
+      const remaining = Math.max(0, Math.ceil((endTimestamp - Date.now()) / 1000));
+      if (remaining <= 0) {
+        const intervalId = this.timerIntervals.get(exerciseIndex);
+        if (intervalId !== undefined) {
+          clearInterval(intervalId);
+        }
         this.timerIntervals.delete(exerciseIndex);
         this.timerRemaining.delete(exerciseIndex);
+        this.timerEndTimestamps.delete(exerciseIndex);
         display.hide();
         display.textContent = "";
         this.triggerRestTimerCompletionFeedback();
@@ -590,7 +604,7 @@ export class WorkoutSessionView extends ItemView {
       const seconds = remaining % 60;
       display.show();
       display.textContent = `⏱ ${minutes}:${seconds.toString().padStart(2, "0")} — tap to stop`;
-      this.timerRemaining.set(exerciseIndex, remaining - 1);
+      this.timerRemaining.set(exerciseIndex, remaining);
     };
 
     tick(); // Show the initial value immediately
@@ -605,6 +619,7 @@ export class WorkoutSessionView extends ItemView {
       this.timerIntervals.delete(exerciseIndex);
     }
     this.timerRemaining.delete(exerciseIndex);
+    this.timerEndTimestamps.delete(exerciseIndex);
     display.hide();
     display.textContent = "";
   }

@@ -11,8 +11,11 @@ export class WorkoutSessionView extends ItemView {
   plugin: WorkoutTrackerPlugin;
   session: WorkoutSession | null = null;
   private timerIntervals: Map<number, ReturnType<typeof setInterval>> = new Map();
-  private timerRemaining: Map<number, number> = new Map();
+  private timerEndTimes: Map<number, number> = new Map();
+  private timerDisplays: Map<number, HTMLElement> = new Map();
   private feedbackAudioContext: AudioContext | null = null;
+  private visibilityHandler: (() => void) | null = null;
+  private dragState: { sourceIndex: number; cards: HTMLElement[]; ghostEl: HTMLElement | null; targetIndex: number } | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: WorkoutTrackerPlugin) {
     super(leaf);
@@ -35,6 +38,12 @@ export class WorkoutSessionView extends ItemView {
   async onClose(): Promise<void> {
     this.timerIntervals.forEach((intervalId) => clearInterval(intervalId));
     this.timerIntervals.clear();
+    this.timerEndTimes.clear();
+    this.timerDisplays.clear();
+    if (this.visibilityHandler) {
+      document.removeEventListener("visibilitychange", this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
     if (this.feedbackAudioContext) {
       void this.feedbackAudioContext.close();
       this.feedbackAudioContext = null;
@@ -70,10 +79,10 @@ export class WorkoutSessionView extends ItemView {
   }
 
   private render() {
-    // Stop all running timers before rebuilding the DOM
+    // Stop intervals but keep timerEndTimes so live timers survive re-renders
     this.timerIntervals.forEach((id) => clearInterval(id));
     this.timerIntervals.clear();
-    this.timerRemaining.clear();
+    this.timerDisplays.clear();
 
     const { contentEl } = this;
     const previousScrollTop = contentEl.scrollTop;
@@ -99,11 +108,22 @@ export class WorkoutSessionView extends ItemView {
       }${this.session.planName ? ` • Plan: ${this.session.planName}` : ""}`
     );
 
+    const cardEls: HTMLElement[] = [];
+
     session.exercises.forEach((exercise, exerciseIndex) => {
       const card = contentEl.createDiv({ cls: "workout-session-card" });
+      cardEls.push(card);
 
       // Exercise header with name and management controls
       const cardHeader = card.createDiv({ cls: "workout-session-card-header" });
+
+      // Drag handle
+      const dragHandle = cardHeader.createDiv({
+        cls: "workout-session-drag-handle",
+        title: "Hold and drag to reorder",
+      });
+      dragHandle.textContent = "⠿";
+      this.attachDragHandle(dragHandle, exerciseIndex, cardEls, session);
 
       if (exercise.exerciseFilePath) {
         const nameBtn = cardHeader.createEl("button", {
@@ -135,40 +155,25 @@ export class WorkoutSessionView extends ItemView {
 
       const exerciseControls = cardHeader.createDiv({ cls: "workout-session-exercise-controls" });
 
-      // Move Up button
-      const moveUpBtn = exerciseControls.createEl("button", {
-        text: "↑",
-        cls: "workout-session-exercise-move",
-        title: "Move exercise up",
+      // Replace exercise button
+      const replaceExerciseBtn = exerciseControls.createEl("button", {
+        text: "⇄",
+        cls: "workout-session-replace-exercise",
+        title: "Replace exercise",
       });
-      moveUpBtn.disabled = exerciseIndex === 0;
-      moveUpBtn.onclick = () => {
-        if (exerciseIndex === 0) return;
-        const exercises = session.exercises;
-        [exercises[exerciseIndex - 1], exercises[exerciseIndex]] = [
-          exercises[exerciseIndex],
-          exercises[exerciseIndex - 1],
-        ];
-        session.hasRoutineChanges = true;
-        this.render();
-      };
-
-      // Move Down button
-      const moveDownBtn = exerciseControls.createEl("button", {
-        text: "↓",
-        cls: "workout-session-exercise-move",
-        title: "Move exercise down",
-      });
-      moveDownBtn.disabled = exerciseIndex === session.exercises.length - 1;
-      moveDownBtn.onclick = () => {
-        const exercises = session.exercises;
-        if (exerciseIndex >= exercises.length - 1) return;
-        [exercises[exerciseIndex], exercises[exerciseIndex + 1]] = [
-          exercises[exerciseIndex + 1],
-          exercises[exerciseIndex],
-        ];
-        session.hasRoutineChanges = true;
-        this.render();
+      replaceExerciseBtn.onclick = () => {
+        void (async () => {
+          const exercises = await this.plugin.definitionService.loadExerciseDefinitions();
+          new AddSessionExerciseModal(
+            this.app, this.plugin, exercises,
+            (newExercise) => {
+              session.exercises[exerciseIndex] = newExercise;
+              session.hasRoutineChanges = true;
+              this.render();
+            },
+            this.plugin.performanceCsvService, session.routineId
+          ).open();
+        })();
       };
 
       // Remove Exercise button
@@ -252,6 +257,11 @@ export class WorkoutSessionView extends ItemView {
       timerDisplay.addEventListener("click", () => {
         this.stopRestTimer(exerciseIndex, timerDisplay);
       });
+      this.timerDisplays.set(exerciseIndex, timerDisplay);
+      // Restore display if a timer is still running for this exercise after a re-render
+      if (this.timerEndTimes.has(exerciseIndex)) {
+        this.resumeTimerDisplay(exerciseIndex, timerDisplay);
+      }
 
       // Routine-specific exercise notes shown inline in the active session
       const routineNoteBanner = card.createDiv({ cls: "workout-session-routine-note-banner" });
@@ -292,6 +302,8 @@ export class WorkoutSessionView extends ItemView {
         });
       }
 
+      const isCardio = exercise.exerciseType === "cardio";
+
       if (Platform.isMobile) {
         const setsWrapper = card.createDiv({ cls: "workout-session-sets-mobile" });
         exercise.sets.forEach((set, index) => {
@@ -301,9 +313,15 @@ export class WorkoutSessionView extends ItemView {
         const tableWrapper = card.createDiv({ cls: "workout-session-table-wrapper" });
         const table = tableWrapper.createEl("table", { cls: "workout-session-table" });
         const header = table.createEl("tr");
-        ["Set", "Prev", "Target", "Actual", "Done", ""].forEach((label) => {
-          header.createEl("th", { text: label });
-        });
+        if (isCardio) {
+          ["Set", "Prev", "Target", "Actual", "Done", ""].forEach((label) => {
+            header.createEl("th", { text: label });
+          });
+        } else {
+          ["Set", "Prev", "Target", "Actual", "Done", ""].forEach((label) => {
+            header.createEl("th", { text: label });
+          });
+        }
 
         exercise.sets.forEach((set, index) => {
           const row = table.createEl("tr", {
@@ -322,25 +340,48 @@ export class WorkoutSessionView extends ItemView {
             session.hasRoutineChanges = true;
             this.render();
           };
-          row.createEl("td", {
-            text:
-              set.previousWeight !== undefined || set.previousReps !== undefined
-                ? `${set.previousWeight ?? "-"} × ${set.previousReps ?? "-"}`
-                : "-",
-          });
 
-          const targetCell = row.createEl("td");
-          this.renderSetEditor(targetCell, set.targetWeight, set.targetReps, (weight, reps) => {
-            set.targetWeight = weight;
-            set.targetReps = reps;
-            session.hasRoutineChanges = true;
-          });
+          if (isCardio) {
+            row.createEl("td", {
+              text:
+                set.duration !== undefined || set.distance !== undefined
+                  ? `${set.duration ?? "-"}min / ${set.distance ?? "-"}km`
+                  : "-",
+            });
 
-          const actualCell = row.createEl("td");
-          this.renderSetEditor(actualCell, set.actualWeight, set.actualReps, (weight, reps) => {
-            set.actualWeight = weight;
-            set.actualReps = reps;
-          });
+            const targetCell = row.createEl("td");
+            this.renderCardioEditor(targetCell, set.duration, set.distance, (duration, distance) => {
+              set.duration = duration;
+              set.distance = distance;
+              session.hasRoutineChanges = true;
+            });
+
+            const actualCell = row.createEl("td");
+            this.renderCardioEditor(actualCell, set.duration, set.distance, (duration, distance) => {
+              set.duration = duration;
+              set.distance = distance;
+            });
+          } else {
+            row.createEl("td", {
+              text:
+                set.previousWeight !== undefined || set.previousReps !== undefined
+                  ? `${set.previousWeight ?? "-"} × ${set.previousReps ?? "-"}`
+                  : "-",
+            });
+
+            const targetCell = row.createEl("td");
+            this.renderSetEditor(targetCell, set.targetWeight, set.targetReps, (weight, reps) => {
+              set.targetWeight = weight;
+              set.targetReps = reps;
+              session.hasRoutineChanges = true;
+            });
+
+            const actualCell = row.createEl("td");
+            this.renderSetEditor(actualCell, set.actualWeight, set.actualReps, (weight, reps) => {
+              set.actualWeight = weight;
+              set.actualReps = reps;
+            });
+          }
 
           const doneCell = row.createEl("td");
           const done = doneCell.createEl("input", { type: "checkbox" });
@@ -494,13 +535,22 @@ export class WorkoutSessionView extends ItemView {
       onRerender();
     };
 
-    const targetText = `${set.targetWeight ?? "0"} × ${set.targetReps ?? "0"}`;
-    header.createEl("span", { text: targetText, cls: "workout-session-set-card-target" });
-
-    this.renderSetEditor(header, set.actualWeight, set.actualReps, (weight, reps) => {
-      set.actualWeight = weight;
-      set.actualReps = reps;
-    });
+    const isCardio = exercise.exerciseType === "cardio";
+    if (isCardio) {
+      const targetText = `${set.duration ?? "0"}min / ${set.distance ?? "0"}km`;
+      header.createEl("span", { text: targetText, cls: "workout-session-set-card-target" });
+      this.renderCardioEditor(header, set.duration, set.distance, (duration, distance) => {
+        set.duration = duration;
+        set.distance = distance;
+      });
+    } else {
+      const targetText = `${set.targetWeight ?? "0"} × ${set.targetReps ?? "0"}`;
+      header.createEl("span", { text: targetText, cls: "workout-session-set-card-target" });
+      this.renderSetEditor(header, set.actualWeight, set.actualReps, (weight, reps) => {
+        set.actualWeight = weight;
+        set.actualReps = reps;
+      });
+    }
 
     const headerRight = header.createDiv({ cls: "workout-session-set-card-header-right" });
     const done = headerRight.createEl("input", { type: "checkbox" });
@@ -564,22 +614,143 @@ export class WorkoutSessionView extends ItemView {
     repsInput.onchange = update;
   }
 
+  private renderCardioEditor(
+    container: HTMLElement,
+    duration: number | undefined,
+    distance: number | undefined,
+    onChange: (duration: number | undefined, distance: number | undefined) => void
+  ) {
+    const wrapper = container.createDiv({ cls: "workout-session-set-editor workout-session-cardio-editor" });
+    const durationInput = wrapper.createEl("input", { type: "number", placeholder: "min" });
+    durationInput.value = duration !== undefined ? String(duration) : "";
+    const distanceInput = wrapper.createEl("input", { type: "number", placeholder: "km" });
+    distanceInput.value = distance !== undefined ? String(distance) : "";
+
+    const update = () => {
+      const nextDuration = durationInput.value ? parseFloat(durationInput.value) : undefined;
+      const nextDistance = distanceInput.value ? parseFloat(distanceInput.value) : undefined;
+      onChange(nextDuration, nextDistance);
+    };
+    durationInput.oninput = update;
+    durationInput.onchange = update;
+    distanceInput.oninput = update;
+    distanceInput.onchange = update;
+  }
+
+  private attachDragHandle(
+    handle: HTMLElement,
+    sourceIndex: number,
+    cardEls: HTMLElement[],
+    session: WorkoutSession
+  ): void {
+    let dragActive = false;
+    let ghostEl: HTMLElement | null = null;
+    let targetIndex = sourceIndex;
+    let startY = 0;
+    let offsetY = 0;
+
+    const getCardIndex = (y: number): number => {
+      let closest = sourceIndex;
+      let closestDist = Infinity;
+      cardEls.forEach((card, i) => {
+        const rect = card.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        const dist = Math.abs(y - mid);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closest = i;
+        }
+      });
+      return closest;
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!dragActive) return;
+      e.preventDefault();
+      const y = e.clientY;
+      if (ghostEl) {
+        ghostEl.style.top = `${y - offsetY}px`;
+      }
+      const newTarget = getCardIndex(y);
+      if (newTarget !== targetIndex) {
+        cardEls[targetIndex]?.removeClass("workout-session-card-drop-target");
+        targetIndex = newTarget;
+        if (targetIndex !== sourceIndex) {
+          cardEls[targetIndex]?.addClass("workout-session-card-drop-target");
+        }
+      }
+    };
+
+    const cleanup = () => {
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      if (ghostEl) {
+        ghostEl.remove();
+        ghostEl = null;
+      }
+      cardEls.forEach((card) => {
+        card.removeClass("workout-session-card-drop-target");
+        card.removeClass("workout-session-card-dragging");
+      });
+      dragActive = false;
+    };
+
+    const onPointerUp = () => {
+      if (dragActive && targetIndex !== sourceIndex) {
+        const exercises = session.exercises;
+        const moved = exercises.splice(sourceIndex, 1)[0];
+        exercises.splice(targetIndex, 0, moved);
+        session.hasRoutineChanges = true;
+        cleanup();
+        this.render();
+      } else {
+        cleanup();
+      }
+    };
+
+    handle.addEventListener("pointerdown", (e: PointerEvent) => {
+      e.preventDefault();
+      dragActive = true;
+      targetIndex = sourceIndex;
+      startY = e.clientY;
+
+      const sourceCard = cardEls[sourceIndex];
+      const rect = sourceCard.getBoundingClientRect();
+      offsetY = e.clientY - rect.top;
+
+      ghostEl = sourceCard.cloneNode(true) as HTMLElement;
+      ghostEl.addClass("workout-session-card-ghost");
+      ghostEl.style.width = `${rect.width}px`;
+      ghostEl.style.top = `${e.clientY - offsetY}px`;
+      ghostEl.style.left = `${rect.left}px`;
+      document.body.appendChild(ghostEl);
+
+      sourceCard.addClass("workout-session-card-dragging");
+
+      document.addEventListener("pointermove", onPointerMove);
+      document.addEventListener("pointerup", onPointerUp);
+    });
+  }
+
   private startRestTimer(exerciseIndex: number, duration: number, display: HTMLElement): void {
-    // Stop any existing timer for this exercise first
     const existing = this.timerIntervals.get(exerciseIndex);
     if (existing !== undefined) {
       clearInterval(existing);
       this.timerIntervals.delete(exerciseIndex);
     }
 
-    this.timerRemaining.set(exerciseIndex, duration);
+    const endTime = Date.now() + duration * 1000;
+    this.timerEndTimes.set(exerciseIndex, endTime);
+    this.timerDisplays.set(exerciseIndex, display);
+    this.ensureVisibilityHandler();
 
     const tick = () => {
-      const remaining = this.timerRemaining.get(exerciseIndex);
-      if (remaining === undefined || remaining < 0) {
+      const remaining = Math.ceil((this.timerEndTimes.get(exerciseIndex)! - Date.now()) / 1000);
+      if (remaining <= 0) {
         clearInterval(this.timerIntervals.get(exerciseIndex));
         this.timerIntervals.delete(exerciseIndex);
-        this.timerRemaining.delete(exerciseIndex);
+        this.timerEndTimes.delete(exerciseIndex);
+        this.timerDisplays.delete(exerciseIndex);
         display.hide();
         display.textContent = "";
         this.triggerRestTimerCompletionFeedback();
@@ -590,10 +761,9 @@ export class WorkoutSessionView extends ItemView {
       const seconds = remaining % 60;
       display.show();
       display.textContent = `⏱ ${minutes}:${seconds.toString().padStart(2, "0")} — tap to stop`;
-      this.timerRemaining.set(exerciseIndex, remaining - 1);
     };
 
-    tick(); // Show the initial value immediately
+    tick();
     const intervalId = setInterval(tick, 1000);
     this.timerIntervals.set(exerciseIndex, intervalId);
   }
@@ -604,9 +774,69 @@ export class WorkoutSessionView extends ItemView {
       clearInterval(id);
       this.timerIntervals.delete(exerciseIndex);
     }
-    this.timerRemaining.delete(exerciseIndex);
+    this.timerEndTimes.delete(exerciseIndex);
+    this.timerDisplays.delete(exerciseIndex);
     display.hide();
     display.textContent = "";
+  }
+
+  private resumeTimerDisplay(exerciseIndex: number, display: HTMLElement): void {
+    const endTime = this.timerEndTimes.get(exerciseIndex);
+    if (endTime === undefined) return;
+
+    const remaining = Math.ceil((endTime - Date.now()) / 1000);
+    if (remaining <= 0) {
+      this.timerEndTimes.delete(exerciseIndex);
+      this.timerDisplays.delete(exerciseIndex);
+      this.triggerRestTimerCompletionFeedback();
+      new Notice("🏋️ Rest complete! Time for the next set.");
+      return;
+    }
+
+    this.timerDisplays.set(exerciseIndex, display);
+    const existing = this.timerIntervals.get(exerciseIndex);
+    if (existing !== undefined) {
+      clearInterval(existing);
+    }
+    const tick = () => {
+      const rem = Math.ceil((this.timerEndTimes.get(exerciseIndex)! - Date.now()) / 1000);
+      if (rem <= 0) {
+        clearInterval(this.timerIntervals.get(exerciseIndex));
+        this.timerIntervals.delete(exerciseIndex);
+        this.timerEndTimes.delete(exerciseIndex);
+        this.timerDisplays.delete(exerciseIndex);
+        display.hide();
+        display.textContent = "";
+        this.triggerRestTimerCompletionFeedback();
+        new Notice("🏋️ Rest complete! Time for the next set.");
+        return;
+      }
+      const minutes = Math.floor(rem / 60);
+      const seconds = rem % 60;
+      display.show();
+      display.textContent = `⏱ ${minutes}:${seconds.toString().padStart(2, "0")} — tap to stop`;
+    };
+    tick();
+    const intervalId = setInterval(tick, 1000);
+    this.timerIntervals.set(exerciseIndex, intervalId);
+  }
+
+  private ensureVisibilityHandler(): void {
+    if (this.visibilityHandler) return;
+    this.visibilityHandler = () => {
+      if (document.visibilityState !== "visible") return;
+      this.timerEndTimes.forEach((endTime, exerciseIndex) => {
+        const display = this.timerDisplays.get(exerciseIndex);
+        if (!display) return;
+        const existing = this.timerIntervals.get(exerciseIndex);
+        if (existing !== undefined) {
+          clearInterval(existing);
+          this.timerIntervals.delete(exerciseIndex);
+        }
+        this.resumeTimerDisplay(exerciseIndex, display);
+      });
+    };
+    document.addEventListener("visibilitychange", this.visibilityHandler);
   }
 
   private triggerSetCompletionFeedback(): void {

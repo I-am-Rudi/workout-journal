@@ -138,6 +138,7 @@ export class AddSessionExerciseModal extends Modal {
       return {
         exerciseId: ex.id,
         exerciseName: ex.name,
+        exerciseType: ex.type,
         sets,
         completed: false,
         exerciseNotes: ex.notes || undefined,
@@ -161,6 +162,7 @@ export class AddSessionExerciseModal extends Modal {
     return {
       exerciseId: ex.id,
       exerciseName: ex.name,
+      exerciseType: ex.type,
       sets,
       completed: false,
       exerciseNotes: ex.notes || undefined,

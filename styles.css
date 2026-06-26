@@ -412,25 +412,28 @@
     cursor: grabbing;
 }
 
-/* Card drag states */
+/* Drag-active mode: collapse all cards to their header bar */
+.workout-session-drag-active .workout-session-card > *:not(.workout-session-card-header) {
+    display: none;
+}
+
+.workout-session-drag-active .workout-session-card {
+    margin-bottom: 6px;
+}
+
+/* The card being dragged is invisible — the ghost takes its place */
 .workout-session-card-dragging {
-    opacity: 0.4;
+    opacity: 0;
 }
 
-.workout-session-card-drop-target {
-    outline: 2px solid var(--interactive-accent);
-    outline-offset: 2px;
-}
-
+/* Floating ghost card that follows the pointer */
 .workout-session-card-ghost {
     position: fixed;
     z-index: 9999;
     pointer-events: none;
-    opacity: 0.85;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-    border-radius: 8px;
-    background: var(--background-secondary);
-    padding: 12px;
+    opacity: 0.92;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.28);
+    border: 1px solid var(--interactive-accent) !important;
 }
 
 .workout-session-replace-exercise {
@@ -722,15 +725,16 @@
     font-size: 16px;
     font-weight: 600;
     line-height: 1.3;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .workout-session-exercise-name {
     color: var(--text-normal);
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .workout-session-exercise-name-btn {
@@ -741,14 +745,9 @@
     color: var(--text-normal);
     cursor: pointer;
     text-align: left;
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    line-height: 1.3;
     border-radius: 4px;
     transition: color 0.15s ease;
+    display: block;
 }
 
 .workout-session-exercise-name-btn:hover {

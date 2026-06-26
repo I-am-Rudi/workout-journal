@@ -643,91 +643,152 @@ export class WorkoutSessionView extends ItemView {
     cardEls: HTMLElement[],
     session: WorkoutSession
   ): void {
+    const n = cardEls.length;
+    if (n < 2) return;
+
     let dragActive = false;
     let ghostEl: HTMLElement | null = null;
-    let targetIndex = sourceIndex;
-    let startY = 0;
+    let currentTarget = sourceIndex;
     let offsetY = 0;
+    let collapsedStep = 0;
+    let listOriginY = 0;
+    let autoScrollRaf: number | null = null;
+    let lastPointerY = 0;
 
-    const getCardIndex = (y: number): number => {
-      let closest = sourceIndex;
-      let closestDist = Infinity;
-      cardEls.forEach((card, i) => {
-        const rect = card.getBoundingClientRect();
-        const mid = rect.top + rect.height / 2;
-        const dist = Math.abs(y - mid);
-        if (dist < closestDist) {
-          closestDist = dist;
-          closest = i;
-        }
-      });
-      return closest;
+    const SCROLL_ZONE = 80;
+    const SCROLL_SPEED = 12;
+    const scrollEl = this.contentEl;
+
+    const stopAutoScroll = () => {
+      if (autoScrollRaf !== null) {
+        cancelAnimationFrame(autoScrollRaf);
+        autoScrollRaf = null;
+      }
     };
 
-    const onPointerMove = (e: PointerEvent) => {
-      if (!dragActive) return;
-      e.preventDefault();
-      const y = e.clientY;
-      if (ghostEl) {
-        ghostEl.style.top = `${y - offsetY}px`;
+    const tickAutoScroll = () => {
+      const rect = scrollEl.getBoundingClientRect();
+      const distTop = lastPointerY - rect.top;
+      const distBottom = rect.bottom - lastPointerY;
+      if (distTop < SCROLL_ZONE) {
+        scrollEl.scrollTop -= SCROLL_SPEED * (1 - distTop / SCROLL_ZONE);
+        autoScrollRaf = requestAnimationFrame(tickAutoScroll);
+      } else if (distBottom < SCROLL_ZONE) {
+        scrollEl.scrollTop += SCROLL_SPEED * (1 - distBottom / SCROLL_ZONE);
+        autoScrollRaf = requestAnimationFrame(tickAutoScroll);
+      } else {
+        autoScrollRaf = null;
       }
-      const newTarget = getCardIndex(y);
-      if (newTarget !== targetIndex) {
-        cardEls[targetIndex]?.removeClass("workout-session-card-drop-target");
-        targetIndex = newTarget;
-        if (targetIndex !== sourceIndex) {
-          cardEls[targetIndex]?.addClass("workout-session-card-drop-target");
+    };
+
+    const getTargetIndex = (pointerY: number): number => {
+      // Use a pre-drag snapshot of card positions so transforms don't affect detection.
+      // listOriginY is the top of card-0 before any transforms.
+      const raw = (pointerY - listOriginY) / collapsedStep;
+      return Math.max(0, Math.min(n - 1, Math.round(raw)));
+    };
+
+    const applyShifts = (target: number) => {
+      cardEls.forEach((card, i) => {
+        if (i === sourceIndex) return;
+        let shift = 0;
+        if (target > sourceIndex && i > sourceIndex && i <= target) {
+          shift = -collapsedStep;
+        } else if (target < sourceIndex && i >= target && i < sourceIndex) {
+          shift = collapsedStep;
         }
-      }
+        card.style.transform = shift ? `translateY(${shift}px)` : "";
+      });
     };
 
     const cleanup = () => {
+      stopAutoScroll();
       document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("pointerup", onPointerUp);
-      if (ghostEl) {
-        ghostEl.remove();
-        ghostEl = null;
-      }
+      if (ghostEl) { ghostEl.remove(); ghostEl = null; }
       cardEls.forEach((card) => {
-        card.removeClass("workout-session-card-drop-target");
+        card.style.transform = "";
+        card.style.transition = "";
         card.removeClass("workout-session-card-dragging");
       });
+      this.contentEl.removeClass("workout-session-drag-active");
       dragActive = false;
     };
 
+    const onPointerMove = (e: PointerEvent) => {
+      if (!dragActive || !ghostEl) return;
+      e.preventDefault();
+      lastPointerY = e.clientY;
+      ghostEl.style.top = `${e.clientY - offsetY}px`;
+
+      stopAutoScroll();
+      const rect = scrollEl.getBoundingClientRect();
+      if (lastPointerY < rect.top + SCROLL_ZONE || lastPointerY > rect.bottom - SCROLL_ZONE) {
+        autoScrollRaf = requestAnimationFrame(tickAutoScroll);
+      }
+
+      const newTarget = getTargetIndex(e.clientY);
+      if (newTarget !== currentTarget) {
+        currentTarget = newTarget;
+        applyShifts(currentTarget);
+      }
+    };
+
     const onPointerUp = () => {
-      if (dragActive && targetIndex !== sourceIndex) {
-        const exercises = session.exercises;
-        const moved = exercises.splice(sourceIndex, 1)[0];
-        exercises.splice(targetIndex, 0, moved);
+      const wasActive = dragActive;
+      const finalTarget = currentTarget;
+      cleanup();
+      if (wasActive && finalTarget !== sourceIndex) {
+        const moved = session.exercises.splice(sourceIndex, 1)[0];
+        session.exercises.splice(finalTarget, 0, moved);
         session.hasRoutineChanges = true;
-        cleanup();
         this.render();
-      } else {
-        cleanup();
       }
     };
 
     handle.addEventListener("pointerdown", (e: PointerEvent) => {
+      if (n < 2) return;
       e.preventDefault();
       dragActive = true;
-      targetIndex = sourceIndex;
-      startY = e.clientY;
+      currentTarget = sourceIndex;
+      lastPointerY = e.clientY;
+
+      // Collapse all cards first so measurements reflect collapsed height
+      this.contentEl.addClass("workout-session-drag-active");
 
       const sourceCard = cardEls[sourceIndex];
-      const rect = sourceCard.getBoundingClientRect();
-      offsetY = e.clientY - rect.top;
+      const sourceRect = sourceCard.getBoundingClientRect();
+      offsetY = e.clientY - sourceRect.top;
 
-      ghostEl = sourceCard.cloneNode(true) as HTMLElement;
-      ghostEl.addClass("workout-session-card-ghost");
-      ghostEl.style.width = `${rect.width}px`;
+      // Measure collapsed step (card height + margin) using adjacent cards when possible
+      if (n > 1) {
+        const r0 = cardEls[0].getBoundingClientRect();
+        const r1 = cardEls[Math.min(1, n - 1)].getBoundingClientRect();
+        collapsedStep = n > 1 ? r1.top - r0.top : r0.height;
+      } else {
+        collapsedStep = sourceRect.height;
+      }
+
+      // Snapshot top of card-0 as list origin for index calculation
+      listOriginY = cardEls[0].getBoundingClientRect().top;
+
+      // Build ghost from the card header only
+      const headerEl = sourceCard.querySelector(".workout-session-card-header") as HTMLElement | null;
+      ghostEl = document.createElement("div");
+      ghostEl.className = "workout-session-card workout-session-card-ghost";
+      ghostEl.style.width = `${sourceRect.width}px`;
       ghostEl.style.top = `${e.clientY - offsetY}px`;
-      ghostEl.style.left = `${rect.left}px`;
+      ghostEl.style.left = `${sourceRect.left}px`;
+      if (headerEl) ghostEl.appendChild(headerEl.cloneNode(true));
       document.body.appendChild(ghostEl);
 
-      sourceCard.addClass("workout-session-card-dragging");
+      // Enable smooth transitions on all non-source cards
+      cardEls.forEach((card, i) => {
+        card.style.transition = "transform 0.12s ease";
+        if (i === sourceIndex) card.addClass("workout-session-card-dragging");
+      });
 
-      document.addEventListener("pointermove", onPointerMove);
+      document.addEventListener("pointermove", onPointerMove, { passive: false });
       document.addEventListener("pointerup", onPointerUp);
     });
   }

@@ -76,8 +76,9 @@ export class WorkoutStatisticsService {
             stats.totalVolume += set.weight * set.reps;
           }
 
-          // Personal records (max weight for each exercise)
-          if (set.weight && set.reps) {
+          // Personal records — only count default sets (not warmup/dropset/myoreps)
+          const isWorkingSet = !set.setType || set.setType === "default";
+          if (isWorkingSet && set.weight && set.reps) {
             const currentPR = stats.personalRecords[exercise.name];
             if (
               !currentPR ||

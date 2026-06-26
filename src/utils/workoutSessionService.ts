@@ -24,6 +24,7 @@ export class WorkoutSessionService {
       exerciseNotesMap?: Map<string, string>;
       exerciseFilePathMap?: Map<string, string>;
       exerciseLastPerformedMap?: Map<string, { reps?: number; weight?: number }>;
+      exerciseTypeMap?: Map<string, "strength" | "cardio" | "flexibility" | "other">;
     }
   ): Promise<WorkoutSession> {
     const exercises: WorkoutSessionExercise[] = [];
@@ -66,6 +67,7 @@ export class WorkoutSessionService {
       exercises.push({
         exerciseId: exercise.exerciseId,
         exerciseName: exercise.exerciseName,
+        exerciseType: options?.exerciseTypeMap?.get(exercise.exerciseId),
         sets,
         completed: false,
         notes: exercise.notes,

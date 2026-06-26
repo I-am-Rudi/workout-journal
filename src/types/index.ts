@@ -169,6 +169,7 @@ export interface WorkoutSessionSet {
 export interface WorkoutSessionExercise {
   exerciseId: string;
   exerciseName: string;
+  exerciseType?: "strength" | "cardio" | "flexibility" | "other";
   sets: WorkoutSessionSet[];
   completed: boolean;
   notes?: string;

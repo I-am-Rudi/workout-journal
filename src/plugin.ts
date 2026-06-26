@@ -374,6 +374,9 @@ export default class WorkoutTrackerPlugin extends Plugin {
         },
       ])
     );
+    const exerciseTypeMap = new Map(
+      exerciseDefs.map((def) => [def.id, def.type])
+    );
     const session = await this.workoutSessionService.createSessionFromRoutine(
       resolved.resolved,
       {
@@ -382,6 +385,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
         exerciseNotesMap,
         exerciseFilePathMap,
         exerciseLastPerformedMap,
+        exerciseTypeMap,
       }
     );
     this.activeSession = session;

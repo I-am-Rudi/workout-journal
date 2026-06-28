@@ -56,7 +56,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
   activeSession: WorkoutSession | null = null;
   private sessionLeaf: WorkspaceLeaf | null = null;
   private fileModifyEventRef: EventRef | undefined;
-  private syncTimeouts: Map<string, NodeJS.Timeout> = new Map();
+  private syncTimeouts: Map<string, number> = new Map();
 
   async onload() {
     await this.loadSettings();
@@ -82,7 +82,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
 
     this.fileModifyEventRef = this.app.vault.on(
       "modify",
-      this.handleFileModify.bind(this)
+      (file: TFile) => this.handleFileModify(file)
     );
     this.registerEvent(this.fileModifyEventRef);
 
@@ -286,12 +286,12 @@ export default class WorkoutTrackerPlugin extends Plugin {
     if (this.fileModifyEventRef) {
       this.app.vault.offref(this.fileModifyEventRef);
     }
-    this.syncTimeouts.forEach((timeout) => clearTimeout(timeout));
+    this.syncTimeouts.forEach((timeout) => window.clearTimeout(timeout));
     this.syncTimeouts.clear();
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()) as WorkoutTrackerSettings;
     if (!this.settings.migration) {
       this.settings.migration = {
         completed: false,
@@ -328,7 +328,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
     try {
       await this.fileService.saveWorkout(workout);
     } catch (error) {
-      new Notice(`Error creating workout file: ${error.message}`);
+      new Notice(`Error creating workout file: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -341,7 +341,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
         new Notice("This file does not contain valid workout data");
       }
     } catch (error) {
-      new Notice(`Error loading workout file: ${error.message}`);
+      new Notice(`Error loading workout file: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -735,10 +735,10 @@ export default class WorkoutTrackerPlugin extends Plugin {
 
     const existingTimeout = this.syncTimeouts.get(file.path);
     if (existingTimeout) {
-      clearTimeout(existingTimeout);
+      window.clearTimeout(existingTimeout);
     }
 
-    const timeout = setTimeout(() => {
+    const timeout = window.setTimeout(() => {
       void (async () => {
         try {
           const isWorkout = await this.fileService.isWorkoutFile(file);
@@ -754,6 +754,6 @@ export default class WorkoutTrackerPlugin extends Plugin {
       })();
     }, this.settings.autoSyncDelayMs);
 
-    this.syncTimeouts.set(file.path, timeout);
+    this.syncTimeouts.set(file.path, timeout as unknown as number);
   }
 }

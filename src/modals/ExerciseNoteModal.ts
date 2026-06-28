@@ -64,7 +64,7 @@ export class ExerciseNoteModal extends Modal {
     });
     textarea.value = body;
     // Focus and move cursor to end after rendering
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       textarea.focus();
       textarea.setSelectionRange(textarea.value.length, textarea.value.length);
     });

@@ -324,7 +324,7 @@ export class DefinitionFileService {
     if (!frontmatterMatch) {
       return null;
     }
-    return parseYaml(frontmatterMatch[1]);
+    return parseYaml(frontmatterMatch[1]) as Record<string, unknown> | null;
   }
 
   private renderExerciseDefinition(def: ExerciseDefinition): string {

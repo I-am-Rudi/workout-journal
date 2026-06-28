@@ -46,7 +46,7 @@ export class WorkoutStatsModal extends Modal {
       loadingEl.remove();
       this.renderStatistics(contentEl, stats);
     } catch (error) {
-      loadingEl.setText(`Error loading statistics: ${error.message}`);
+      loadingEl.setText(`Error loading statistics: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -226,7 +226,7 @@ export class WorkoutStatsModal extends Modal {
           loadingEl.remove();
           this.renderStatistics(container, newStats);
         } catch (error) {
-          loadingEl.setText(`Error loading statistics: ${error.message}`);
+          loadingEl.setText(`Error loading statistics: ${error instanceof Error ? error.message : String(error)}`);
         }
       })
     );

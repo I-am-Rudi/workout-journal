@@ -45,7 +45,7 @@ So far the plugin is mostly self-tested and was specifically designed to be used
 
 ### With BRAT (Recommended for Beta Testing)1. Install the [BRAT plugin](https://github.com/TfTHacker/obsidian42-brat) in Obsidian
 
-2. Open BRAT settings and click **"Add Beta plugin"**
+1. Open BRAT settings and click **"Add Beta plugin"**
 2. Enter this repo URL:
    `https://github.com/I-am-Rudi/obsidian-workout-journal.git`
 3. Choose version (e.g., `latest` or a specific release tag)
@@ -108,7 +108,7 @@ palette.
   <td><img src="./assets/active2.png" height="400"></td>
 </tr></table>
 
-![Active Session](https://github.com/I-am-Rudi/workout-journal/raw/refs/heads/main/assets/active-session.mp4)
+![Active Session](./assets/active-session.gif)
 
 ### Manage Exercises, Routines, and Workout Plans
 

@@ -7,7 +7,7 @@ import { parseYaml } from "obsidian";
 export function parseTemplateFrontmatter(yaml: string | undefined): Record<string, unknown> {
   if (!yaml?.trim()) return {};
   try {
-    const parsed = parseYaml(yaml);
+    const parsed = parseYaml(yaml) as Record<string, unknown> | null | unknown[];
     return parsed && typeof parsed === "object" && !Array.isArray(parsed)
       ? (parsed as Record<string, unknown>)
       : {};

@@ -10,7 +10,7 @@ export const WORKOUT_SESSION_VIEW_TYPE = "workout-tracker-session-view";
 export class WorkoutSessionView extends ItemView {
   plugin: WorkoutTrackerPlugin;
   session: WorkoutSession | null = null;
-  private timerIntervals: Map<number, ReturnType<typeof setInterval>> = new Map();
+  private timerIntervals: Map<number, number> = new Map();
   private timerEndTimes: Map<number, number> = new Map();
   private timerDisplays: Map<number, HTMLElement> = new Map();
   private feedbackAudioContext: AudioContext | null = null;
@@ -36,12 +36,12 @@ export class WorkoutSessionView extends ItemView {
   }
 
   async onClose(): Promise<void> {
-    this.timerIntervals.forEach((intervalId) => clearInterval(intervalId));
+    this.timerIntervals.forEach((intervalId) => window.clearInterval(intervalId));
     this.timerIntervals.clear();
     this.timerEndTimes.clear();
     this.timerDisplays.clear();
     if (this.visibilityHandler) {
-      document.removeEventListener("visibilitychange", this.visibilityHandler);
+      activeDocument.removeEventListener("visibilitychange", this.visibilityHandler);
       this.visibilityHandler = null;
     }
     if (this.feedbackAudioContext) {
@@ -80,7 +80,7 @@ export class WorkoutSessionView extends ItemView {
 
   private render() {
     // Stop intervals but keep timerEndTimes so live timers survive re-renders
-    this.timerIntervals.forEach((id) => clearInterval(id));
+    this.timerIntervals.forEach((id) => window.clearInterval(id));
     this.timerIntervals.clear();
     this.timerDisplays.clear();
 
@@ -471,9 +471,9 @@ export class WorkoutSessionView extends ItemView {
             session.notes = value;
           })
       );
-    const workoutNotesTextArea = contentEl.querySelector(
+    const workoutNotesTextArea = contentEl.querySelector<HTMLTextAreaElement>(
       ".setting-item:last-of-type textarea"
-    ) as HTMLTextAreaElement | null;
+    );
     if (workoutNotesTextArea) {
       workoutNotesTextArea.addClass("workout-session-workout-notes");
       workoutNotesTextArea.rows = 4;
@@ -670,10 +670,10 @@ export class WorkoutSessionView extends ItemView {
       const distBottom = rect.bottom - lastPointerY;
       if (distTop < SCROLL_ZONE) {
         scrollEl.scrollTop -= SCROLL_SPEED * (1 - distTop / SCROLL_ZONE);
-        autoScrollRaf = requestAnimationFrame(tickAutoScroll);
+        autoScrollRaf = window.requestAnimationFrame(tickAutoScroll);
       } else if (distBottom < SCROLL_ZONE) {
         scrollEl.scrollTop += SCROLL_SPEED * (1 - distBottom / SCROLL_ZONE);
-        autoScrollRaf = requestAnimationFrame(tickAutoScroll);
+        autoScrollRaf = window.requestAnimationFrame(tickAutoScroll);
       } else {
         autoScrollRaf = null;
       }
@@ -708,8 +708,8 @@ export class WorkoutSessionView extends ItemView {
 
     const cleanup = () => {
       stopAutoScroll();
-      document.removeEventListener("pointermove", onPointerMove);
-      document.removeEventListener("pointerup", onPointerUp);
+      activeDocument.removeEventListener("pointermove", onPointerMove);
+      activeDocument.removeEventListener("pointerup", onPointerUp);
       if (ghostEl) { ghostEl.remove(); ghostEl = null; }
       cardEls.forEach((card) => {
         card.setCssStyles({ transform: "" });
@@ -734,15 +734,15 @@ export class WorkoutSessionView extends ItemView {
 
       const sourceCard = cardEls[sourceIndex];
       const sourceRect = sourceCard.getBoundingClientRect();
-      const headerEl = sourceCard.querySelector(".workout-session-card-header") as HTMLElement | null;
+      const headerEl = sourceCard.querySelector<HTMLElement>(".workout-session-card-header");
 
-      ghostEl = document.createElement("div");
+      ghostEl = activeDocument.createElement("div");
       ghostEl.className = "workout-session-card workout-session-card-ghost";
       ghostEl.style.width = `${sourceRect.width}px`;
       ghostEl.style.top = `${pointerY}px`;
       ghostEl.style.left = `${sourceRect.left}px`;
       if (headerEl) ghostEl.appendChild(headerEl.cloneNode(true));
-      document.body.appendChild(ghostEl);
+      activeDocument.body.appendChild(ghostEl);
 
       cardEls.forEach((card, i) => {
         card.addClass("workout-session-card-drag-transition");
@@ -771,7 +771,7 @@ export class WorkoutSessionView extends ItemView {
       stopAutoScroll();
       const rect = scrollEl.getBoundingClientRect();
       if (lastPointerY < rect.top + SCROLL_ZONE || lastPointerY > rect.bottom - SCROLL_ZONE) {
-        autoScrollRaf = requestAnimationFrame(tickAutoScroll);
+        autoScrollRaf = window.requestAnimationFrame(tickAutoScroll);
       }
 
       const newTarget = getTargetIndex(e.clientY);
@@ -802,15 +802,15 @@ export class WorkoutSessionView extends ItemView {
       currentTarget = sourceIndex;
       startY = e.clientY;
       lastPointerY = e.clientY;
-      document.addEventListener("pointermove", onPointerMove, { passive: false });
-      document.addEventListener("pointerup", onPointerUp);
+      activeDocument.addEventListener("pointermove", onPointerMove, { passive: false });
+      activeDocument.addEventListener("pointerup", onPointerUp);
     });
   }
 
   private startRestTimer(exerciseIndex: number, duration: number, display: HTMLElement): void {
     const existing = this.timerIntervals.get(exerciseIndex);
     if (existing !== undefined) {
-      clearInterval(existing);
+      window.clearInterval(existing);
       this.timerIntervals.delete(exerciseIndex);
     }
 
@@ -820,9 +820,11 @@ export class WorkoutSessionView extends ItemView {
     this.ensureVisibilityHandler();
 
     const tick = () => {
-      const remaining = Math.ceil((this.timerEndTimes.get(exerciseIndex)! - Date.now()) / 1000);
+      const endTime = this.timerEndTimes.get(exerciseIndex);
+      if (endTime === undefined) return;
+      const remaining = Math.ceil((endTime - Date.now()) / 1000);
       if (remaining <= 0) {
-        clearInterval(this.timerIntervals.get(exerciseIndex));
+        window.clearInterval(this.timerIntervals.get(exerciseIndex));
         this.timerIntervals.delete(exerciseIndex);
         this.timerEndTimes.delete(exerciseIndex);
         this.timerDisplays.delete(exerciseIndex);
@@ -839,14 +841,14 @@ export class WorkoutSessionView extends ItemView {
     };
 
     tick();
-    const intervalId = setInterval(tick, 1000);
+    const intervalId = window.setInterval(tick, 1000) as unknown as number;
     this.timerIntervals.set(exerciseIndex, intervalId);
   }
 
   private stopRestTimer(exerciseIndex: number, display: HTMLElement): void {
     const id = this.timerIntervals.get(exerciseIndex);
     if (id !== undefined) {
-      clearInterval(id);
+      window.clearInterval(id);
       this.timerIntervals.delete(exerciseIndex);
     }
     this.timerEndTimes.delete(exerciseIndex);
@@ -871,12 +873,14 @@ export class WorkoutSessionView extends ItemView {
     this.timerDisplays.set(exerciseIndex, display);
     const existing = this.timerIntervals.get(exerciseIndex);
     if (existing !== undefined) {
-      clearInterval(existing);
+      window.clearInterval(existing);
     }
     const tick = () => {
-      const rem = Math.ceil((this.timerEndTimes.get(exerciseIndex)! - Date.now()) / 1000);
+      const timerEnd = this.timerEndTimes.get(exerciseIndex);
+      if (timerEnd === undefined) return;
+      const rem = Math.ceil((timerEnd - Date.now()) / 1000);
       if (rem <= 0) {
-        clearInterval(this.timerIntervals.get(exerciseIndex));
+        window.clearInterval(this.timerIntervals.get(exerciseIndex));
         this.timerIntervals.delete(exerciseIndex);
         this.timerEndTimes.delete(exerciseIndex);
         this.timerDisplays.delete(exerciseIndex);
@@ -892,26 +896,26 @@ export class WorkoutSessionView extends ItemView {
       display.textContent = `⏱ ${minutes}:${seconds.toString().padStart(2, "0")} — tap to stop`;
     };
     tick();
-    const intervalId = setInterval(tick, 1000);
+    const intervalId = window.setInterval(tick, 1000) as unknown as number;
     this.timerIntervals.set(exerciseIndex, intervalId);
   }
 
   private ensureVisibilityHandler(): void {
     if (this.visibilityHandler) return;
     this.visibilityHandler = () => {
-      if (document.visibilityState !== "visible") return;
+      if (activeDocument.visibilityState !== "visible") return;
       this.timerEndTimes.forEach((endTime, exerciseIndex) => {
         const display = this.timerDisplays.get(exerciseIndex);
         if (!display) return;
         const existing = this.timerIntervals.get(exerciseIndex);
         if (existing !== undefined) {
-          clearInterval(existing);
+          window.clearInterval(existing);
           this.timerIntervals.delete(exerciseIndex);
         }
         this.resumeTimerDisplay(exerciseIndex, display);
       });
     };
-    document.addEventListener("visibilitychange", this.visibilityHandler);
+    activeDocument.addEventListener("visibilitychange", this.visibilityHandler);
   }
 
   private triggerSetCompletionFeedback(): void {

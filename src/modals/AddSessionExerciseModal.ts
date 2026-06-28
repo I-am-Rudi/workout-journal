@@ -51,7 +51,7 @@ export class AddSessionExerciseModal extends Modal {
         this.renderList();
       });
       // Auto-focus the search field
-      setTimeout(() => text.inputEl.focus(), 50);
+      window.setTimeout(() => text.inputEl.focus(), 50);
     });
 
     this.listEl = contentEl.createDiv({ cls: "workout-add-exercise-list" });

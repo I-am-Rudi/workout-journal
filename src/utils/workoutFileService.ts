@@ -48,7 +48,7 @@ export class WorkoutFileService {
         return newFile;
       }
     } catch (error) {
-      new Notice(`Error saving workout: ${error.message}`);
+      new Notice(`Error saving workout: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
   }
@@ -76,7 +76,7 @@ export class WorkoutFileService {
       new Notice(`Workout updated: ${file.basename}`);
       return true;
     } catch (error) {
-      new Notice(`Error updating workout: ${error.message}`);
+      new Notice(`Error updating workout: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     }
   }
@@ -129,7 +129,7 @@ export class WorkoutFileService {
       const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
       if (!frontmatterMatch) return false;
 
-      const frontmatter = parseYaml(frontmatterMatch[1]);
+      const frontmatter = parseYaml(frontmatterMatch[1]) as Record<string, unknown> | null;
       return frontmatter?.['wj-type'] === "workout";
     } catch {
       return false;
@@ -291,7 +291,7 @@ export class WorkoutFileService {
       }
 
       const yamlContent = frontmatterMatch[1];
-      const frontmatter = parseYaml(yamlContent);
+      const frontmatter = parseYaml(yamlContent) as Record<string, unknown> | null;
 
       // Validate and construct workout object
       if (!frontmatter || frontmatter['wj-type'] !== "workout") {
@@ -300,14 +300,14 @@ export class WorkoutFileService {
       }
 
       const workout: Workout = {
-        id: frontmatter['wj-id'] || Date.now().toString(),
-        date: frontmatter['wj-date'] || new Date().toISOString().split("T")[0],
-        name: frontmatter['wj-name'] || fallbackName,
-        exercises: this.parseExercises(frontmatter['wj-exercises'] || []),
-        duration: frontmatter['wj-duration'],
-        notes: frontmatter['wj-notes'],
-        sourceRoutineId: frontmatter['wj-source-routine-id'],
-        sourcePlanId: frontmatter['wj-source-plan-id'],
+        id: (frontmatter['wj-id'] as string | undefined) ?? Date.now().toString(),
+        date: (frontmatter['wj-date'] as string | undefined) ?? new Date().toISOString().split("T")[0],
+        name: (frontmatter['wj-name'] as string | undefined) ?? fallbackName,
+        exercises: this.parseExercises((frontmatter['wj-exercises'] as unknown[] | undefined) ?? []),
+        duration: frontmatter['wj-duration'] as number | undefined,
+        notes: frontmatter['wj-notes'] as string | undefined,
+        sourceRoutineId: frontmatter['wj-source-routine-id'] as string | undefined,
+        sourcePlanId: frontmatter['wj-source-plan-id'] as string | undefined,
       };
 
       return workout;
@@ -331,8 +331,8 @@ export class WorkoutFileService {
       const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
       if (frontmatterMatch) {
         try {
-          const frontmatter = parseYaml(frontmatterMatch[1]);
-          originalId = frontmatter?.['wj-id'];
+          const frontmatter = parseYaml(frontmatterMatch[1]) as Record<string, unknown> | null;
+          originalId = frontmatter?.['wj-id'] as string | undefined;
         } catch {
           // Ignore frontmatter parsing errors, we'll generate a new ID
         }

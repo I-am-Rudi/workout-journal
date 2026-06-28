@@ -712,8 +712,8 @@ export class WorkoutSessionView extends ItemView {
       document.removeEventListener("pointerup", onPointerUp);
       if (ghostEl) { ghostEl.remove(); ghostEl = null; }
       cardEls.forEach((card) => {
-        card.style.transform = "";
-        card.style.transition = "";
+        card.setCssStyles({ transform: "" });
+        card.removeClass("workout-session-card-drag-transition");
         card.removeClass("workout-session-card-dragging");
       });
       this.contentEl.removeClass("workout-session-drag-active");
@@ -745,7 +745,7 @@ export class WorkoutSessionView extends ItemView {
       document.body.appendChild(ghostEl);
 
       cardEls.forEach((card, i) => {
-        card.style.transition = "transform 0.12s ease";
+        card.addClass("workout-session-card-drag-transition");
         if (i === sourceIndex) card.addClass("workout-session-card-dragging");
       });
 

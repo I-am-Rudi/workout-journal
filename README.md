@@ -103,11 +103,6 @@ This is possible from the ribbon menu, or by opening an existing routine and
 run `Start Workout Session from Current Note` command, or via the command
 palette.
 
-<table><tr>
-  <td><img src="./assets/active1.png" height="400"></td>
-  <td><img src="./assets/active2.png" height="400"></td>
-</tr></table>
-
 ![Active Session](./assets/active-session.gif)
 
 ### Manage Exercises, Routines, and Workout Plans

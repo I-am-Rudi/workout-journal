@@ -643,18 +643,16 @@ export class WorkoutSessionView extends ItemView {
     cardEls: HTMLElement[],
     session: WorkoutSession
   ): void {
-    const n = cardEls.length;
-    if (n < 2) return;
-
+    let pendingDrag = false;
     let dragActive = false;
+    let startY = 0;
     let ghostEl: HTMLElement | null = null;
     let currentTarget = sourceIndex;
-    let offsetY = 0;
-    let collapsedStep = 0;
-    let listOriginY = 0;
+    let capturedStep = 0;
     let autoScrollRaf: number | null = null;
     let lastPointerY = 0;
 
+    const DRAG_THRESHOLD = 6;
     const SCROLL_ZONE = 80;
     const SCROLL_SPEED = 12;
     const scrollEl = this.contentEl;
@@ -682,10 +680,17 @@ export class WorkoutSessionView extends ItemView {
     };
 
     const getTargetIndex = (pointerY: number): number => {
-      // Use a pre-drag snapshot of card positions so transforms don't affect detection.
-      // listOriginY is the top of card-0 before any transforms.
-      const raw = (pointerY - listOriginY) / collapsedStep;
-      return Math.max(0, Math.min(n - 1, Math.round(raw)));
+      const n = cardEls.length;
+      let best = currentTarget;
+      let bestDist = Infinity;
+      cardEls.forEach((card, i) => {
+        if (i === sourceIndex) return;
+        const rect = card.getBoundingClientRect();
+        const center = rect.top + rect.height / 2;
+        const dist = Math.abs(pointerY - center);
+        if (dist < bestDist) { bestDist = dist; best = i; }
+      });
+      return Math.max(0, Math.min(n - 1, best));
     };
 
     const applyShifts = (target: number) => {
@@ -693,9 +698,9 @@ export class WorkoutSessionView extends ItemView {
         if (i === sourceIndex) return;
         let shift = 0;
         if (target > sourceIndex && i > sourceIndex && i <= target) {
-          shift = -collapsedStep;
+          shift = -capturedStep;
         } else if (target < sourceIndex && i >= target && i < sourceIndex) {
-          shift = collapsedStep;
+          shift = capturedStep;
         }
         card.style.transform = shift ? `translateY(${shift}px)` : "";
       });
@@ -712,14 +717,56 @@ export class WorkoutSessionView extends ItemView {
         card.removeClass("workout-session-card-dragging");
       });
       this.contentEl.removeClass("workout-session-drag-active");
+      pendingDrag = false;
       dragActive = false;
     };
 
+    const activateDrag = (pointerY: number) => {
+      const n = cardEls.length;
+      this.contentEl.addClass("workout-session-drag-active");
+
+      // Capture collapsed step from live positions after collapse CSS applies
+      if (n >= 2) {
+        const r0 = cardEls[0].getBoundingClientRect();
+        const r1 = cardEls[1].getBoundingClientRect();
+        capturedStep = r1.top - r0.top;
+      }
+
+      const sourceCard = cardEls[sourceIndex];
+      const sourceRect = sourceCard.getBoundingClientRect();
+      const headerEl = sourceCard.querySelector(".workout-session-card-header") as HTMLElement | null;
+
+      ghostEl = document.createElement("div");
+      ghostEl.className = "workout-session-card workout-session-card-ghost";
+      ghostEl.style.width = `${sourceRect.width}px`;
+      ghostEl.style.top = `${pointerY}px`;
+      ghostEl.style.left = `${sourceRect.left}px`;
+      if (headerEl) ghostEl.appendChild(headerEl.cloneNode(true));
+      document.body.appendChild(ghostEl);
+
+      cardEls.forEach((card, i) => {
+        card.style.transition = "transform 0.12s ease";
+        if (i === sourceIndex) card.addClass("workout-session-card-dragging");
+      });
+
+      currentTarget = getTargetIndex(pointerY);
+      applyShifts(currentTarget);
+      dragActive = true;
+      pendingDrag = false;
+    };
+
     const onPointerMove = (e: PointerEvent) => {
-      if (!dragActive || !ghostEl) return;
+      if (!pendingDrag && !dragActive) return;
       e.preventDefault();
       lastPointerY = e.clientY;
-      ghostEl.style.top = `${e.clientY - offsetY}px`;
+
+      if (pendingDrag && Math.abs(e.clientY - startY) >= DRAG_THRESHOLD) {
+        activateDrag(e.clientY);
+      }
+
+      if (!dragActive || !ghostEl) return;
+
+      ghostEl.style.top = `${e.clientY}px`;
 
       stopAutoScroll();
       const rect = scrollEl.getBoundingClientRect();
@@ -747,47 +794,14 @@ export class WorkoutSessionView extends ItemView {
     };
 
     handle.addEventListener("pointerdown", (e: PointerEvent) => {
+      const n = cardEls.length; // evaluated at fire time so card 0 gets correct count
       if (n < 2) return;
       e.preventDefault();
-      dragActive = true;
+      pendingDrag = true;
+      dragActive = false;
       currentTarget = sourceIndex;
+      startY = e.clientY;
       lastPointerY = e.clientY;
-
-      // Collapse all cards first so measurements reflect collapsed height
-      this.contentEl.addClass("workout-session-drag-active");
-
-      const sourceCard = cardEls[sourceIndex];
-      const sourceRect = sourceCard.getBoundingClientRect();
-      offsetY = e.clientY - sourceRect.top;
-
-      // Measure collapsed step (card height + margin) using adjacent cards when possible
-      if (n > 1) {
-        const r0 = cardEls[0].getBoundingClientRect();
-        const r1 = cardEls[Math.min(1, n - 1)].getBoundingClientRect();
-        collapsedStep = n > 1 ? r1.top - r0.top : r0.height;
-      } else {
-        collapsedStep = sourceRect.height;
-      }
-
-      // Snapshot top of card-0 as list origin for index calculation
-      listOriginY = cardEls[0].getBoundingClientRect().top;
-
-      // Build ghost from the card header only
-      const headerEl = sourceCard.querySelector(".workout-session-card-header") as HTMLElement | null;
-      ghostEl = document.createElement("div");
-      ghostEl.className = "workout-session-card workout-session-card-ghost";
-      ghostEl.style.width = `${sourceRect.width}px`;
-      ghostEl.style.top = `${e.clientY - offsetY}px`;
-      ghostEl.style.left = `${sourceRect.left}px`;
-      if (headerEl) ghostEl.appendChild(headerEl.cloneNode(true));
-      document.body.appendChild(ghostEl);
-
-      // Enable smooth transitions on all non-source cards
-      cardEls.forEach((card, i) => {
-        card.style.transition = "transform 0.12s ease";
-        if (i === sourceIndex) card.addClass("workout-session-card-dragging");
-      });
-
       document.addEventListener("pointermove", onPointerMove, { passive: false });
       document.addEventListener("pointerup", onPointerUp);
     });

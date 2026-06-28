@@ -426,6 +426,11 @@
     opacity: 0;
 }
 
+/* Smooth shift animation applied during a drag */
+.workout-session-card-drag-transition {
+    transition: transform 0.12s ease;
+}
+
 /* Floating ghost card that follows the pointer */
 .workout-session-card-ghost {
     position: fixed;

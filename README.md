@@ -3,7 +3,7 @@
 This plugin aims to provide a comprehensive workout tracking solution within
 Obsidian. The focus is on providing a user experience reminiscent of dedicated
 fitness apps, while allowing enough customization and flexibility to fit
-various Knowledge Management Systems (KMS) and personal workflows. 
+various Knowledge Management Systems (KMS) and personal workflows.
 
 The project originally started as a fork of the very nice [Obsidian Workout
 Tracker](https://github.com/wanabeunique/obsidian-workout-tracker) plugin. But
@@ -16,7 +16,7 @@ So far the plugin is mostly self-tested and was specifically designed to be used
 
 - 💪 **Exercise Logging**: Track sets, reps, weights, duration, and distances
 - 🧩 **Workout Templates/Routines**: Create reusable routines that you
-  repeatedly train and keep notes on your sessions 
+  repeatedly train and keep notes on your sessions
 - 🗓️ **Workout Plans**: Create structured Workout Plans build from routines
 - 📚 **Exercise Library**: Build your own exercise library with muscle group
   targeting
@@ -44,12 +44,13 @@ So far the plugin is mostly self-tested and was specifically designed to be used
 ## Installation
 
 ### With BRAT (Recommended for Beta Testing)1. Install the [BRAT plugin](https://github.com/TfTHacker/obsidian42-brat) in Obsidian
+
 2. Open BRAT settings and click **"Add Beta plugin"**
-3. Enter this repo URL:
+2. Enter this repo URL:
    `https://github.com/I-am-Rudi/obsidian-workout-journal.git`
-4. Choose version (e.g., `latest` or a specific release tag)
-5. Click **Add Plugin**
-6. Enable **Workout Journal** in Settings → Community Plugins
+3. Choose version (e.g., `latest` or a specific release tag)
+4. Click **Add Plugin**
+5. Enable **Workout Journal** in Settings → Community Plugins
 
 ### Manual Installation (Development)
 
@@ -66,6 +67,7 @@ I will submit the plugin to the official Obsidian Community Plugins directory. O
 ## Usage (with some screenshots from the iOS version)
 
 ### Interfaces Overview
+
 - **Ribbon Icon**: Quick access to start a new workout or open the statistics
   view, includes a Quick Log option for creating a workout on the fly without a
   template
@@ -83,7 +85,7 @@ I will submit the plugin to the official Obsidian Community Plugins directory. O
 
   <img src="./assets/quick-log.png" width="300">
 
--  Use the command palette: "Workout Journal: Create New Workout"
+- Use the command palette: "Workout Journal: Create New Workout"
 - Use settings to create workout templates for your common routines (e.g.,
   "Full Body Workout", "Leg Day", etc.)
 - Create a routine from an already completed workout to reuse it in the future
@@ -94,6 +96,7 @@ I will submit the plugin to the official Obsidian Community Plugins directory. O
   command instead.**
 
 ### Active Workout Session
+
 You can start an active workout session for any workout file created by the plugin. This opens a dedicated interface where you can quickly log exercise values, add new sets, exercises, and notes on the fly. The session is designed to closely mirror the experience of a dedicated fitness app, allowing you to focus on your workout while keeping your data organized.
 
 This is possible from the ribbon menu, or by opening an existing routine and
@@ -105,7 +108,10 @@ palette.
   <td><img src="./assets/active2.png" height="400"></td>
 </tr></table>
 
+![Active Session](https://github.com/I-am-Rudi/workout-journal/raw/refs/heads/main/assets/active-session.mp4)
+
 ### Manage Exercises, Routines, and Workout Plans
+
 - Use the settings interface to create and manage your exercise library, workout
   templates, and workout plans
 
@@ -127,8 +133,6 @@ palette.
 
 <img src="./assets/migrate.png" width="300">
 
-
-
 ### Viewing Statistics
 
 Use "Workout Journal: View Workout Statistics" to see comprehensive analytics
@@ -144,13 +148,13 @@ and notes**. Additionally, there is an **option to create exercise notes for eac
 unique exercise encountered during the import process**, allowing you to build
 your exercise library seamlessly from your Strong App data.
 
->[!tip] 
+>[!tip]
 > Using the `Create Routine from Current Workout` command on a workout imported
 > from Strong App is a great way to quickly migrate your existing workout
 > routines into reusable templates within Obsidian.
 
 >[!warning]
-> The definition of the exercises imported this way is incomplete, so it is recommended to edit the created exercise notes after import to add muscle group targeting and other relevant information. 
+> The definition of the exercises imported this way is incomplete, so it is recommended to edit the created exercise notes after import to add muscle group targeting and other relevant information.
 
 ### Editing Existing Workouts
 

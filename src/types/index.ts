@@ -189,6 +189,8 @@ export interface WorkoutSession {
   exercises: WorkoutSessionExercise[];
   notes?: string;
   hasRoutineChanges: boolean;
+  routineEditMode?: boolean;
+  editingRoutineFilePath?: string;
 }
 
 export interface SessionFinishOptions {

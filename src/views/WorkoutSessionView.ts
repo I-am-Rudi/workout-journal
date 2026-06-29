@@ -313,10 +313,9 @@ export class WorkoutSessionView extends ItemView {
         const tableWrapper = card.createDiv({ cls: "workout-session-table-wrapper" });
         const table = tableWrapper.createEl("table", { cls: "workout-session-table" });
         const header = table.createEl("tr");
-        if (isCardio) {
-          ["Set", "Prev", "Target", "Actual", "Done", ""].forEach((label) => {
-            header.createEl("th", { text: label });
-          });
+        const isRoutineEdit = !!session.routineEditMode;
+        if (isRoutineEdit) {
+          ["Set", "Target", ""].forEach((label) => header.createEl("th", { text: label }));
         } else {
           ["Set", "Prev", "Target", "Actual", "Done", ""].forEach((label) => {
             header.createEl("th", { text: label });
@@ -342,12 +341,14 @@ export class WorkoutSessionView extends ItemView {
           };
 
           if (isCardio) {
-            row.createEl("td", {
-              text:
-                set.duration !== undefined || set.distance !== undefined
-                  ? `${set.duration ?? "-"}min / ${set.distance ?? "-"}km`
-                  : "-",
-            });
+            if (!isRoutineEdit) {
+              row.createEl("td", {
+                text:
+                  set.duration !== undefined || set.distance !== undefined
+                    ? `${set.duration ?? "-"}min / ${set.distance ?? "-"}km`
+                    : "-",
+              });
+            }
 
             const targetCell = row.createEl("td");
             this.renderCardioEditor(targetCell, set.duration, set.distance, (duration, distance) => {
@@ -356,18 +357,22 @@ export class WorkoutSessionView extends ItemView {
               session.hasRoutineChanges = true;
             });
 
-            const actualCell = row.createEl("td");
-            this.renderCardioEditor(actualCell, set.duration, set.distance, (duration, distance) => {
-              set.duration = duration;
-              set.distance = distance;
-            });
+            if (!isRoutineEdit) {
+              const actualCell = row.createEl("td");
+              this.renderCardioEditor(actualCell, set.duration, set.distance, (duration, distance) => {
+                set.duration = duration;
+                set.distance = distance;
+              });
+            }
           } else {
-            row.createEl("td", {
-              text:
-                set.previousWeight !== undefined || set.previousReps !== undefined
-                  ? `${set.previousWeight ?? "-"} × ${set.previousReps ?? "-"}`
-                  : "-",
-            });
+            if (!isRoutineEdit) {
+              row.createEl("td", {
+                text:
+                  set.previousWeight !== undefined || set.previousReps !== undefined
+                    ? `${set.previousWeight ?? "-"} × ${set.previousReps ?? "-"}`
+                    : "-",
+              });
+            }
 
             const targetCell = row.createEl("td");
             this.renderSetEditor(targetCell, set.targetWeight, set.targetReps, (weight, reps) => {
@@ -376,32 +381,36 @@ export class WorkoutSessionView extends ItemView {
               session.hasRoutineChanges = true;
             });
 
-            const actualCell = row.createEl("td");
-            this.renderSetEditor(actualCell, set.actualWeight, set.actualReps, (weight, reps) => {
-              set.actualWeight = weight;
-              set.actualReps = reps;
-            });
+            if (!isRoutineEdit) {
+              const actualCell = row.createEl("td");
+              this.renderSetEditor(actualCell, set.actualWeight, set.actualReps, (weight, reps) => {
+                set.actualWeight = weight;
+                set.actualReps = reps;
+              });
+            }
           }
 
-          const doneCell = row.createEl("td");
-          const done = doneCell.createEl("input", { type: "checkbox" });
-          done.checked = set.completed;
-          done.onchange = () => {
-            set.completed = done.checked;
-            exercise.completed = exercise.sets.every((exerciseSet) => exerciseSet.completed);
-            row.toggleClass("workout-session-row-completed", set.completed);
-            if (done.checked) {
-              this.triggerSetCompletionFeedback();
-              const dur = exercise.restTimerSeconds !== undefined
-                ? exercise.restTimerSeconds
-                : this.plugin.settings.defaultRestTimerSeconds;
-              if (dur > 0) {
-                this.startRestTimer(exerciseIndex, dur, timerDisplay);
+          if (!isRoutineEdit) {
+            const doneCell = row.createEl("td");
+            const done = doneCell.createEl("input", { type: "checkbox" });
+            done.checked = set.completed;
+            done.onchange = () => {
+              set.completed = done.checked;
+              exercise.completed = exercise.sets.every((exerciseSet) => exerciseSet.completed);
+              row.toggleClass("workout-session-row-completed", set.completed);
+              if (done.checked) {
+                this.triggerSetCompletionFeedback();
+                const dur = exercise.restTimerSeconds !== undefined
+                  ? exercise.restTimerSeconds
+                  : this.plugin.settings.defaultRestTimerSeconds;
+                if (dur > 0) {
+                  this.startRestTimer(exerciseIndex, dur, timerDisplay);
+                }
+              } else {
+                this.stopRestTimer(exerciseIndex, timerDisplay);
               }
-            } else {
-              this.stopRestTimer(exerciseIndex, timerDisplay);
-            }
-          };
+            };
+          }
 
           const removeCell = row.createEl("td");
           const removeBtn = removeCell.createEl("button", { text: "✕", cls: "workout-session-remove-set" });
@@ -462,11 +471,11 @@ export class WorkoutSessionView extends ItemView {
       );
 
     new Setting(contentEl)
-      .setName("Workout notes")
+      .setName(session.routineEditMode ? "Routine notes" : "Workout notes")
       .addTextArea((text) =>
         text
           .setValue(session.notes || "")
-          .setPlaceholder("Add workout notes…")
+          .setPlaceholder(session.routineEditMode ? "Add routine notes…" : "Add workout notes…")
           .onChange((value) => {
             session.notes = value;
           })
@@ -477,6 +486,28 @@ export class WorkoutSessionView extends ItemView {
     if (workoutNotesTextArea) {
       workoutNotesTextArea.addClass("workout-session-workout-notes");
       workoutNotesTextArea.rows = 4;
+    }
+
+    if (session.routineEditMode) {
+      new Setting(contentEl)
+        .addButton((btn) =>
+          btn.setButtonText("Save routine").setCta().onClick(() => {
+            void this.plugin.saveRoutineFromSession();
+          })
+        )
+        .addButton((btn) =>
+          btn.setButtonText("Discard changes").setWarning().onClick(() => {
+            new ConfirmModal(
+              this.plugin.app,
+              "Discard all changes to this routine?",
+              () => {
+                void this.plugin.cancelActiveSession();
+              }
+            ).open();
+          })
+        );
+      contentEl.scrollTo({ top: previousScrollTop });
+      return;
     }
 
     new Setting(contentEl)
@@ -536,6 +567,7 @@ export class WorkoutSessionView extends ItemView {
     };
 
     const isCardio = exercise.exerciseType === "cardio";
+    const isRoutineEdit = !!this.session?.routineEditMode;
     if (isCardio) {
       const targetText = `${set.duration ?? "0"}min / ${set.distance ?? "0"}km`;
       header.createEl("span", { text: targetText, cls: "workout-session-set-card-target" });
@@ -546,31 +578,39 @@ export class WorkoutSessionView extends ItemView {
     } else {
       const targetText = `${set.targetWeight ?? "0"} × ${set.targetReps ?? "0"}`;
       header.createEl("span", { text: targetText, cls: "workout-session-set-card-target" });
-      this.renderSetEditor(header, set.actualWeight, set.actualReps, (weight, reps) => {
-        set.actualWeight = weight;
-        set.actualReps = reps;
+      this.renderSetEditor(header, isRoutineEdit ? set.targetWeight : set.actualWeight, isRoutineEdit ? set.targetReps : set.actualReps, (weight, reps) => {
+        if (isRoutineEdit) {
+          set.targetWeight = weight;
+          set.targetReps = reps;
+          if (this.session) this.session.hasRoutineChanges = true;
+        } else {
+          set.actualWeight = weight;
+          set.actualReps = reps;
+        }
       });
     }
 
     const headerRight = header.createDiv({ cls: "workout-session-set-card-header-right" });
-    const done = headerRight.createEl("input", { type: "checkbox" });
-    done.checked = set.completed;
-    done.onchange = () => {
-      set.completed = done.checked;
-      exercise.completed = exercise.sets.every((s) => s.completed);
-      card.toggleClass("workout-session-row-completed", set.completed);
-      if (done.checked) {
-        this.triggerSetCompletionFeedback();
-        const dur = exercise.restTimerSeconds !== undefined
-          ? exercise.restTimerSeconds
-          : this.plugin.settings.defaultRestTimerSeconds;
-        if (dur > 0) {
-          this.startRestTimer(exerciseIndex, dur, timerDisplay);
+    if (!isRoutineEdit) {
+      const done = headerRight.createEl("input", { type: "checkbox" });
+      done.checked = set.completed;
+      done.onchange = () => {
+        set.completed = done.checked;
+        exercise.completed = exercise.sets.every((s) => s.completed);
+        card.toggleClass("workout-session-row-completed", set.completed);
+        if (done.checked) {
+          this.triggerSetCompletionFeedback();
+          const dur = exercise.restTimerSeconds !== undefined
+            ? exercise.restTimerSeconds
+            : this.plugin.settings.defaultRestTimerSeconds;
+          if (dur > 0) {
+            this.startRestTimer(exerciseIndex, dur, timerDisplay);
+          }
+        } else {
+          this.stopRestTimer(exerciseIndex, timerDisplay);
         }
-      } else {
-        this.stopRestTimer(exerciseIndex, timerDisplay);
-      }
-    };
+      };
+    }
 
     const removeBtn = headerRight.createEl("button", { text: "✕", cls: "workout-session-remove-set" });
     removeBtn.onclick = () => {

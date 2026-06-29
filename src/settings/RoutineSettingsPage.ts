@@ -1,64 +1,92 @@
-import { App, Setting } from "obsidian";
+import { App, Notice, Setting, TFile } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
-import { WorkoutTemplateSettingModal } from "./WorkoutTemplateSettingModal";
 
 export class RoutineSettingsPage {
-  render(containerEl: HTMLElement, app: App, plugin: WorkoutTrackerPlugin, onBack: () => void): void {
+  async render(containerEl: HTMLElement, app: App, plugin: WorkoutTrackerPlugin, onBack: () => void): Promise<void> {
     containerEl.empty();
 
-    new Setting(containerEl)
-      .addButton((btn) =>
-        btn.setButtonText("← Back to general settings").onClick(() => {
-          onBack();
-        })
-      );
+    new Setting(containerEl).addButton((btn) =>
+      btn.setButtonText("← Back to general settings").onClick(() => onBack())
+    );
 
-    containerEl.createEl("h2", { text: "Routine templates" });
-    containerEl.createEl("p", {
-      text: "Routine templates are legacy definitions stored in plugin settings. Use 'Migrate templates to notes' on the main settings page to convert them into full routine notes that support detailed per-exercise set configuration.",
-      cls: "setting-item-description",
-    });
+    containerEl.createEl("h2", { text: "Routines" });
 
     const listContainer = containerEl.createDiv();
-    this.renderList(listContainer, plugin);
+
+    const renderList = async () => {
+      listContainer.empty();
+
+      if (!plugin.settings.routinesFolder) {
+        listContainer.createEl("p", {
+          text: "Configure the routines folder in general settings first.",
+          cls: "setting-item-description",
+        });
+        return;
+      }
+
+      const routines = await plugin.definitionService.loadRoutineDefinitions();
+      routines.sort((a, b) => a.name.localeCompare(b.name));
+
+      if (routines.length === 0) {
+        listContainer.createEl("p", {
+          text: "No routine notes found. Add your first routine below.",
+          cls: "setting-item-description",
+        });
+        return;
+      }
+
+      for (const routine of routines) {
+        const exerciseCount = routine.exercises.length;
+        const desc = `${exerciseCount} exercise${exerciseCount !== 1 ? "s" : ""}` +
+          (exerciseCount > 0 ? ` · ${routine.exercises.map((e) => e.exerciseName).join(", ")}` : "");
+
+        const setting = new Setting(listContainer).setName(routine.name).setDesc(desc);
+
+        if (routine.filePath) {
+          setting.addButton((btn) =>
+            btn.setButtonText("Edit as routine").onClick(() => {
+              const file = app.vault.getAbstractFileByPath(routine.filePath!);
+              if (file instanceof TFile) void plugin.openRoutineEditor(file);
+            })
+          );
+
+          setting.addButton((btn) =>
+            btn.setButtonText("Open note").onClick(() => {
+              void app.workspace.openLinkText(routine.filePath!, "", false);
+            })
+          );
+        }
+
+        setting.addButton((btn) =>
+          btn.setButtonText("Delete").setWarning().onClick(() => {
+            void (async () => {
+              if (!routine.filePath) {
+                new Notice("Cannot delete: file path unknown.");
+                return;
+              }
+              const file = app.vault.getAbstractFileByPath(routine.filePath);
+              if (!(file instanceof TFile)) {
+                new Notice("Routine note not found.");
+                return;
+              }
+              await app.fileManager.trashFile(file);
+              new Notice(`Deleted: ${routine.name}`);
+              await renderList();
+            })();
+          })
+        );
+      }
+    };
+
+    await renderList();
 
     new Setting(containerEl).addButton((btn) =>
-      btn
-        .setButtonText("Add routine template")
-        .setCta()
-        .onClick(() => {
-          new WorkoutTemplateSettingModal(app, plugin, () => {
-            this.renderList(listContainer, plugin);
-          }).open();
-        })
+      btn.setButtonText("Add routine").setCta().onClick(() => {
+        void (async () => {
+          await plugin.createRoutineNoteFromPrompt();
+          await renderList();
+        })();
+      })
     );
-  }
-
-  private renderList(container: HTMLElement, plugin: WorkoutTrackerPlugin): void {
-    container.empty();
-
-    if (plugin.settings.workoutTemplates.length === 0) {
-      container.createEl("p", {
-        text: "No routine templates defined.",
-        cls: "setting-item-description",
-      });
-      return;
-    }
-
-    plugin.settings.workoutTemplates.forEach((template, index) => {
-      new Setting(container)
-        .setName(template.name)
-        .setDesc(`${template.exercises.join(", ")} | ${template.estimatedDuration} min`)
-        .addButton((btn) =>
-          btn
-            .setButtonText("Remove")
-            .setWarning()
-            .onClick(async () => {
-              plugin.settings.workoutTemplates.splice(index, 1);
-              await plugin.saveSettings();
-              this.renderList(container, plugin);
-            })
-        );
-    });
   }
 }

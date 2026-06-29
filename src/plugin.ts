@@ -26,6 +26,7 @@ import { PerformanceCsvService } from "./utils/performanceCsvService";
 import { WorkoutSessionService } from "./utils/workoutSessionService";
 import { createIdFromName, generateId } from "./utils/idUtils";
 import {
+  ExerciseDefinitionModal,
   ExerciseTemplateModal,
   InputPromptModal,
   PlanSelectionModal,
@@ -38,7 +39,7 @@ import {
   WorkoutStatsModal,
   WorkoutTypeSelectionModal,
 } from "./modals";
-import { WorkoutTrackerSettingTab } from "./settings";
+import { PlanBuilderModal, WorkoutTrackerSettingTab } from "./settings";
 import {
   WORKOUT_SESSION_VIEW_TYPE,
   WorkoutSessionView,
@@ -244,6 +245,39 @@ export default class WorkoutTrackerPlugin extends Plugin {
     });
 
     this.addCommand({
+      id: "edit-current-note-as-routine",
+      name: "Edit current note as routine",
+      checkCallback: (checking: boolean) => {
+        const file = this.app.workspace.getActiveFile();
+        if (!file) return false;
+        if (!checking) void this.openRoutineEditor(file);
+        return true;
+      },
+    });
+
+    this.addCommand({
+      id: "edit-current-note-as-exercise",
+      name: "Edit current note as exercise",
+      checkCallback: (checking: boolean) => {
+        const file = this.app.workspace.getActiveFile();
+        if (!file) return false;
+        if (!checking) void this.openExerciseEditor(file);
+        return true;
+      },
+    });
+
+    this.addCommand({
+      id: "edit-current-note-as-plan",
+      name: "Edit current note as workout plan",
+      checkCallback: (checking: boolean) => {
+        const file = this.app.workspace.getActiveFile();
+        if (!file) return false;
+        if (!checking) void this.openPlanEditor(file);
+        return true;
+      },
+    });
+
+    this.addCommand({
       id: "create-workout-plan-note",
       name: "Create workout plan note",
       callback: async () => {
@@ -272,10 +306,10 @@ export default class WorkoutTrackerPlugin extends Plugin {
     });
 
     this.addCommand({
-      id: "migrate-settings-templates-to-notes",
-      name: "Migrate settings templates to notes",
+      id: "add-example-templates",
+      name: "Add example exercise and routine notes",
       callback: async () => {
-        await this.migrateTemplatesToNotes();
+        await this.addExampleTemplates();
       },
     });
 
@@ -390,6 +424,103 @@ export default class WorkoutTrackerPlugin extends Plugin {
     );
     this.activeSession = session;
     await this.openSessionView(preferPopout);
+  }
+
+  async openRoutineEditor(file: TFile): Promise<void> {
+    const routine = await this.definitionService.loadRoutineFromFile(file);
+    if (!routine) {
+      new Notice("This note is not a valid routine definition.");
+      return;
+    }
+
+    const exerciseDefs = await this.definitionService.loadExerciseDefinitions();
+    const exerciseById = new Map(exerciseDefs.map((d) => [d.id, d]));
+
+    const session: WorkoutSession = {
+      id: generateId(),
+      date: new Date().toISOString().split("T")[0],
+      name: routine.name,
+      routineId: routine.id,
+      routineName: routine.name,
+      exercises: routine.exercises.map((entry) => {
+        const def = exerciseById.get(entry.exerciseId);
+        return {
+          exerciseId: entry.exerciseId,
+          exerciseName: entry.exerciseName,
+          exerciseType: def?.type,
+          exerciseFilePath: def?.filePath,
+          exerciseNotes: def?.notes,
+          sets: entry.sets.map((s, i) => ({
+            setIndex: i + 1,
+            targetReps: s.reps,
+            targetWeight: s.weight,
+            actualReps: s.reps,
+            actualWeight: s.weight,
+            duration: s.duration,
+            distance: s.distance,
+            restTime: s.restTime,
+            setType: s.setType,
+            completed: false,
+          })),
+          completed: false,
+          notes: entry.notes,
+        };
+      }),
+      notes: routine.notes,
+      hasRoutineChanges: false,
+      routineEditMode: true,
+      editingRoutineFilePath: file.path,
+    };
+
+    this.activeSession = session;
+    await this.openSessionView(false);
+  }
+
+  async saveRoutineFromSession(): Promise<void> {
+    const session = this.activeSession;
+    if (!session?.routineEditMode || !session.editingRoutineFilePath) return;
+
+    const file = this.app.vault.getAbstractFileByPath(session.editingRoutineFilePath);
+    if (!(file instanceof TFile)) {
+      new Notice("Could not find the routine file to save.");
+      return;
+    }
+
+    const existing = await this.definitionService.loadRoutineFromFile(file);
+    if (!existing) {
+      new Notice("Could not read the routine to update.");
+      return;
+    }
+
+    const updated: RoutineDefinition = {
+      ...existing,
+      exercises: session.exercises.map((ex) => ({
+        exerciseId: ex.exerciseId,
+        exerciseName: ex.exerciseName,
+        exerciseLink: ex.exerciseFilePath
+          ? `[[${ex.exerciseFilePath.replace(/\.md$/, "")}]]`
+          : undefined,
+        sets: ex.sets.map((s) => ({
+          reps: s.targetReps,
+          weight: s.targetWeight,
+          duration: s.duration,
+          distance: s.distance,
+          restTime: s.restTime,
+          setType: s.setType,
+        })),
+        notes: ex.notes,
+      })),
+      notes: session.notes,
+    };
+
+    await this.definitionService.updateRoutineDefinition(updated);
+    new Notice(`Routine "${updated.name}" saved.`);
+
+    this.activeSession = null;
+    if (this.sessionLeaf) {
+      await this.sessionLeaf.setViewState({ type: "empty" });
+      this.sessionLeaf = null;
+    }
   }
 
   async startQuickLogSession(preferPopout: boolean): Promise<void> {
@@ -611,7 +742,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
     }
   }
 
-  private async createExerciseNoteFromPrompt(): Promise<void> {
+  async createExerciseNoteFromPrompt(): Promise<void> {
     const name = await this.prompt("Exercise name");
     if (!name) return;
     const definition: ExerciseDefinition = {
@@ -626,7 +757,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
     new Notice(`Exercise note created: ${name}`);
   }
 
-  private async createRoutineNoteFromPrompt(): Promise<void> {
+  async createRoutineNoteFromPrompt(): Promise<void> {
     const name = await this.prompt("Routine name");
     if (!name) return;
     const routine: RoutineDefinition = {
@@ -711,6 +842,56 @@ export default class WorkoutTrackerPlugin extends Plugin {
     };
     await this.definitionService.createWorkoutPlanDefinition(plan);
     new Notice(`Workout plan note created: ${name}`);
+  }
+
+  private async openExerciseEditor(file: TFile): Promise<void> {
+    const def = await this.definitionService.loadExerciseFromFile(file);
+    if (!def) {
+      new Notice("This note is not a valid exercise definition.");
+      return;
+    }
+    new ExerciseDefinitionModal(this.app, this, () => {}, def).open();
+  }
+
+  private async openPlanEditor(file: TFile): Promise<void> {
+    const plan = await this.definitionService.loadPlanFromFile(file);
+    if (!plan) {
+      new Notice("This note is not a valid workout plan.");
+      return;
+    }
+    const routines = await this.definitionService.loadRoutineDefinitions();
+    new PlanBuilderModal(this.app, this, routines, () => {}, plan).open();
+  }
+
+  async addExampleTemplates(): Promise<void> {
+    const exerciseExamples: ExerciseDefinition[] = [
+      { id: "bench-press", name: "Bench Press", type: "strength", muscleGroups: ["chest", "triceps"], defaultSets: 3, defaultReps: 8, defaultWeight: 60 },
+      { id: "squat", name: "Squat", type: "strength", muscleGroups: ["quads", "glutes"], defaultSets: 4, defaultReps: 6, defaultWeight: 80 },
+      { id: "pull-up", name: "Pull-up", type: "strength", muscleGroups: ["back", "biceps"], defaultSets: 3, defaultReps: 8 },
+      { id: "running", name: "Running", type: "cardio", muscleGroups: [], defaultDuration: 30, defaultDistance: 5 },
+      { id: "plank", name: "Plank", type: "flexibility", muscleGroups: ["core"], defaultSets: 3, defaultDuration: 1 },
+    ];
+
+    for (const def of exerciseExamples) {
+      await this.definitionService.createExerciseDefinition(def);
+    }
+
+    const routineExamples: RoutineDefinition[] = [
+      {
+        id: "push-day",
+        name: "Push Day",
+        estimatedDuration: 60,
+        exercises: [
+          { exerciseId: "bench-press", exerciseName: "Bench Press", sets: [{ reps: 8, weight: 60 }, { reps: 8, weight: 60 }, { reps: 8, weight: 60 }] },
+        ],
+      },
+    ];
+
+    for (const routine of routineExamples) {
+      await this.definitionService.createRoutineDefinition(routine);
+    }
+
+    new Notice(`Added ${exerciseExamples.length} example exercises and ${routineExamples.length} example routine.`);
   }
 
   private prompt(label: string, defaultValue?: string): Promise<string | null> {

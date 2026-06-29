@@ -258,17 +258,13 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl).setName("Migration").setHeading();
+    new Setting(containerEl).setName("Examples").setHeading();
     new Setting(containerEl)
-      .setName("Template migration status")
-      .setDesc(
-        this.plugin.settings.migration.completed
-          ? `Completed at ${this.plugin.settings.migration.migratedAt}. Exercises: ${this.plugin.settings.migration.exerciseCount}, Routines: ${this.plugin.settings.migration.routineCount}.`
-          : "Not yet migrated."
-      )
+      .setName("Add example templates")
+      .setDesc("Create a small set of sample exercise and routine notes to explore the plugin.")
       .addButton((btn) =>
-        btn.setButtonText("Migrate templates to notes").onClick(async () => {
-          await this.plugin.migrateTemplatesToNotes();
+        btn.setButtonText("Add examples").onClick(async () => {
+          await this.plugin.addExampleTemplates();
           this.display();
         })
       );
@@ -285,12 +281,9 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
 
     new Setting(containerEl).setName("Library").setHeading();
 
-    const exerciseCount = this.plugin.settings.exerciseTemplates.length;
     new Setting(containerEl)
-      .setName("Exercise templates")
-      .setDesc(
-        `${exerciseCount} template${exerciseCount !== 1 ? "s" : ""} defined (legacy settings-based)`
-      )
+      .setName("Exercises")
+      .setDesc("Manage exercise definitions stored as notes in your vault")
       .addButton((btn) =>
         btn.setButtonText("Manage →").onClick(() => {
           this.currentPage = "exercises";
@@ -298,12 +291,9 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
         })
       );
 
-    const routineCount = this.plugin.settings.workoutTemplates.length;
     new Setting(containerEl)
-      .setName("Routine templates")
-      .setDesc(
-        `${routineCount} template${routineCount !== 1 ? "s" : ""} defined (legacy settings-based)`
-      )
+      .setName("Routines")
+      .setDesc("Manage workout routines stored as notes in your vault")
       .addButton((btn) =>
         btn.setButtonText("Manage →").onClick(() => {
           this.currentPage = "routines";
@@ -334,7 +324,7 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
 
   private renderExercises(): void {
     const { containerEl } = this;
-    new ExerciseSettingsPage().render(containerEl, this.app, this.plugin, () => {
+    void new ExerciseSettingsPage().render(containerEl, this.app, this.plugin, () => {
       this.currentPage = "main";
       this.display();
     });
@@ -342,7 +332,7 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
 
   private renderRoutines(): void {
     const { containerEl } = this;
-    new RoutineSettingsPage().render(containerEl, this.app, this.plugin, () => {
+    void new RoutineSettingsPage().render(containerEl, this.app, this.plugin, () => {
       this.currentPage = "main";
       this.display();
     });

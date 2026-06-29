@@ -7,6 +7,7 @@ export class PlanBuilderModal extends Modal {
   plugin: WorkoutTrackerPlugin;
   availableRoutines: RoutineDefinition[];
   onSave: () => void;
+  private existingPlan: WorkoutPlanDefinition | undefined;
 
   private planName = "";
   private selectedEntries: WorkoutPlanRoutineEntry[] = [];
@@ -15,24 +16,30 @@ export class PlanBuilderModal extends Modal {
     app: App,
     plugin: WorkoutTrackerPlugin,
     availableRoutines: RoutineDefinition[],
-    onSave: () => void
+    onSave: () => void,
+    existingPlan?: WorkoutPlanDefinition
   ) {
     super(app);
     this.plugin = plugin;
     this.availableRoutines = availableRoutines;
     this.onSave = onSave;
+    this.existingPlan = existingPlan;
+    if (existingPlan) {
+      this.planName = existingPlan.name;
+      this.selectedEntries = existingPlan.routines.map((r) => ({ ...r }));
+    }
   }
 
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
 
-    contentEl.createEl("h2", { text: "Create workout plan" });
+    contentEl.createEl("h2", { text: this.existingPlan ? "Edit workout plan" : "Create workout plan" });
 
     new Setting(contentEl)
       .setName("Plan name")
       .addText((text) =>
-        text.setPlaceholder("e.g. Push/Pull/Legs").onChange((value) => {
+        text.setPlaceholder("e.g. Push/Pull/Legs").setValue(this.planName).onChange((value) => {
           this.planName = value.trim();
         })
       );
@@ -80,7 +87,7 @@ export class PlanBuilderModal extends Modal {
 
     new Setting(contentEl).addButton((btn) =>
       btn
-        .setButtonText("Save plan")
+        .setButtonText(this.existingPlan ? "Update plan" : "Save plan")
         .setCta()
         .onClick(() => {
           void this.savePlan();
@@ -104,13 +111,14 @@ export class PlanBuilderModal extends Modal {
     }
 
     const plan: WorkoutPlanDefinition = {
-      id: createIdFromName(this.planName),
+      id: this.existingPlan?.id ?? createIdFromName(this.planName),
       name: this.planName,
       routines: this.selectedEntries.map((entry) => ({
         ...entry,
         day: entry.day || undefined,
         notes: entry.notes || undefined,
       })),
+      filePath: this.existingPlan?.filePath,
     };
 
     const file = await this.plugin.definitionService.createWorkoutPlanDefinition(plan);

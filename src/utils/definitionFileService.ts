@@ -73,6 +73,14 @@ export class DefinitionFileService {
     def: WorkoutPlanDefinition
   ): Promise<TFile | null> {
     await this.ensureFolders();
+    const content = this.renderPlanDefinition(def);
+    if (def.filePath) {
+      const existingByPath = this.app.vault.getAbstractFileByPath(def.filePath);
+      if (existingByPath instanceof TFile) {
+        await this.app.vault.modify(existingByPath, content);
+        return existingByPath;
+      }
+    }
     const fileName = this.createSafeFileName(def.name, "plan-note");
     const folder = this.requireConfiguredFolder(
       this.settings.workoutPlansFolder,
@@ -80,7 +88,6 @@ export class DefinitionFileService {
     );
     const path = `${folder}/${fileName}.md`;
     const existing = this.app.vault.getAbstractFileByPath(path);
-    const content = this.renderPlanDefinition(def);
     if (existing instanceof TFile) {
       await this.app.vault.modify(existing, content);
       return existing;

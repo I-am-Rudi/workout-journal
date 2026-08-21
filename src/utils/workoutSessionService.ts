@@ -1,4 +1,5 @@
 import {
+  ExerciseType,
   RoutineDefinition,
   SessionFinishOptions,
   SetType,
@@ -24,7 +25,7 @@ export class WorkoutSessionService {
       exerciseNotesMap?: Map<string, string>;
       exerciseFilePathMap?: Map<string, string>;
       exerciseLastPerformedMap?: Map<string, { reps?: number; weight?: number }>;
-      exerciseTypeMap?: Map<string, "strength" | "cardio" | "flexibility" | "other">;
+      exerciseTypeMap?: Map<string, ExerciseType>;
     }
   ): Promise<WorkoutSession> {
     const exercises: WorkoutSessionExercise[] = [];

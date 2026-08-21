@@ -4,6 +4,8 @@ import { SessionFinishOptions, SetType, WorkoutSession, WorkoutSessionExercise, 
 import { AddSessionExerciseModal } from "../modals/AddSessionExerciseModal";
 import { ExerciseNoteModal } from "../modals/ExerciseNoteModal";
 import { ConfirmModal } from "../modals/ConfirmModal";
+import { FeedbackPlayer } from "../utils/feedbackUtils";
+import { isDurationOnly, isRepsOnly } from "../utils/exerciseTypeUtils";
 
 export const WORKOUT_SESSION_VIEW_TYPE = "workout-tracker-session-view";
 
@@ -13,7 +15,7 @@ export class WorkoutSessionView extends ItemView {
   private timerIntervals: Map<number, number> = new Map();
   private timerEndTimes: Map<number, number> = new Map();
   private timerDisplays: Map<number, HTMLElement> = new Map();
-  private feedbackAudioContext: AudioContext | null = null;
+  private feedback = new FeedbackPlayer();
   private visibilityHandler: (() => void) | null = null;
   private dragState: { sourceIndex: number; cards: HTMLElement[]; ghostEl: HTMLElement | null; targetIndex: number } | null = null;
 
@@ -44,10 +46,7 @@ export class WorkoutSessionView extends ItemView {
       activeDocument.removeEventListener("visibilitychange", this.visibilityHandler);
       this.visibilityHandler = null;
     }
-    if (this.feedbackAudioContext) {
-      void this.feedbackAudioContext.close();
-      this.feedbackAudioContext = null;
-    }
+    this.feedback.dispose();
     this.contentEl.empty();
   }
 
@@ -79,6 +78,10 @@ export class WorkoutSessionView extends ItemView {
   }
 
   private render() {
+    // Every re-render follows a session change; snapshot it so the state on
+    // disk stays current even if the app is killed while in the background.
+    this.plugin.persistActiveSession();
+
     // Stop intervals but keep timerEndTimes so live timers survive re-renders
     this.timerIntervals.forEach((id) => window.clearInterval(id));
     this.timerIntervals.clear();
@@ -152,6 +155,10 @@ export class WorkoutSessionView extends ItemView {
         cls: "workout-session-timer-btn",
         title: "Edit rest timer for this exercise",
       });
+      // Circuits use the per-set pause instead of a rest timer.
+      if (session.isCircle) {
+        timerBtn.hide();
+      }
 
       const exerciseControls = cardHeader.createDiv({ cls: "workout-session-exercise-controls" });
 
@@ -171,7 +178,8 @@ export class WorkoutSessionView extends ItemView {
               session.hasRoutineChanges = true;
               this.render();
             },
-            this.plugin.performanceCsvService, session.routineId
+            this.plugin.performanceCsvService, session.routineId,
+            session.isCircle ? "duration-only" : undefined
           ).open();
         })();
       };
@@ -303,6 +311,8 @@ export class WorkoutSessionView extends ItemView {
       }
 
       const isCardio = exercise.exerciseType === "cardio";
+      const durationOnly = isDurationOnly(exercise.exerciseType);
+      const repsOnly = isRepsOnly(exercise.exerciseType);
 
       if (Platform.isMobile) {
         const setsWrapper = card.createDiv({ cls: "workout-session-sets-mobile" });
@@ -314,13 +324,18 @@ export class WorkoutSessionView extends ItemView {
         const table = tableWrapper.createEl("table", { cls: "workout-session-table" });
         const header = table.createEl("tr");
         const isRoutineEdit = !!session.routineEditMode;
-        if (isRoutineEdit) {
-          ["Set", "Target", ""].forEach((label) => header.createEl("th", { text: label }));
-        } else {
-          ["Set", "Prev", "Target", "Actual", "Done", ""].forEach((label) => {
-            header.createEl("th", { text: label });
-          });
-        }
+        // duration-only sets carry a single time value, so target and actual
+        // collapse into one editable column; circuit routines add the pause.
+        const headerLabels = session.isCircle
+          ? ["Set", "Work (s)", "Pause (s)", ""]
+          : isRoutineEdit
+            ? durationOnly
+              ? ["Set", "Duration (s)", ""]
+              : ["Set", "Target", ""]
+            : durationOnly
+              ? ["Set", "Duration (s)", "Done", ""]
+              : ["Set", "Prev", "Target", "Actual", "Done", ""];
+        headerLabels.forEach((label) => header.createEl("th", { text: label }));
 
         exercise.sets.forEach((set, index) => {
           const row = table.createEl("tr", {
@@ -340,7 +355,21 @@ export class WorkoutSessionView extends ItemView {
             this.render();
           };
 
-          if (isCardio) {
+          if (durationOnly) {
+            const durationCell = row.createEl("td");
+            this.renderDurationEditor(durationCell, set.duration, (duration) => {
+              set.duration = duration;
+              session.hasRoutineChanges = true;
+            });
+
+            if (session.isCircle) {
+              const pauseCell = row.createEl("td");
+              this.renderDurationEditor(pauseCell, set.restTime, (restTime) => {
+                set.restTime = restTime;
+                session.hasRoutineChanges = true;
+              });
+            }
+          } else if (isCardio) {
             if (!isRoutineEdit) {
               row.createEl("td", {
                 text:
@@ -362,6 +391,25 @@ export class WorkoutSessionView extends ItemView {
               this.renderCardioEditor(actualCell, set.duration, set.distance, (duration, distance) => {
                 set.duration = duration;
                 set.distance = distance;
+              });
+            }
+          } else if (repsOnly) {
+            if (!isRoutineEdit) {
+              row.createEl("td", {
+                text: set.previousReps !== undefined ? `${set.previousReps} reps` : "-",
+              });
+            }
+
+            const targetCell = row.createEl("td");
+            this.renderRepsEditor(targetCell, set.targetReps, (reps) => {
+              set.targetReps = reps;
+              session.hasRoutineChanges = true;
+            });
+
+            if (!isRoutineEdit) {
+              const actualCell = row.createEl("td");
+              this.renderRepsEditor(actualCell, set.actualReps, (reps) => {
+                set.actualReps = reps;
               });
             }
           } else {
@@ -423,34 +471,25 @@ export class WorkoutSessionView extends ItemView {
         });
       }
 
-      new Setting(card).addButton((btn) =>
-        btn.setButtonText("Add set").onClick(() => {
-          exercise.sets.push({
-            setIndex: exercise.sets.length + 1,
-            completed: false,
-            targetReps:
-              exercise.sets.length > 0
-                ? exercise.sets[exercise.sets.length - 1].targetReps
-                : undefined,
-            targetWeight:
-              exercise.sets.length > 0
-                ? exercise.sets[exercise.sets.length - 1].targetWeight
-                : undefined,
-            actualReps:
-              exercise.sets.length > 0
-                ? exercise.sets[exercise.sets.length - 1].actualReps ??
-                  exercise.sets[exercise.sets.length - 1].targetReps
-                : undefined,
-            actualWeight:
-              exercise.sets.length > 0
-                ? exercise.sets[exercise.sets.length - 1].actualWeight ??
-                  exercise.sets[exercise.sets.length - 1].targetWeight
-                : undefined,
-          });
-          session.hasRoutineChanges = true;
-          this.render();
-        })
-      );
+      // A circuit exercise is a single work/pause pair, so extra sets are noise.
+      if (!session.isCircle) {
+        new Setting(card).addButton((btn) =>
+          btn.setButtonText("Add set").onClick(() => {
+            const lastSet = exercise.sets[exercise.sets.length - 1];
+            exercise.sets.push({
+              setIndex: exercise.sets.length + 1,
+              completed: false,
+              duration: durationOnly ? lastSet?.duration : undefined,
+              targetReps: lastSet?.targetReps,
+              targetWeight: lastSet?.targetWeight,
+              actualReps: lastSet?.actualReps ?? lastSet?.targetReps,
+              actualWeight: lastSet?.actualWeight ?? lastSet?.targetWeight,
+            });
+            session.hasRoutineChanges = true;
+            this.render();
+          })
+        );
+      }
 
     });
 
@@ -465,7 +504,8 @@ export class WorkoutSessionView extends ItemView {
               session.exercises.push(newExercise);
               session.hasRoutineChanges = true;
               this.render();
-            }, this.plugin.performanceCsvService, session.routineId).open();
+            }, this.plugin.performanceCsvService, session.routineId,
+            session.isCircle ? "duration-only" : undefined).open();
           })();
         })
       );
@@ -567,14 +607,49 @@ export class WorkoutSessionView extends ItemView {
     };
 
     const isCardio = exercise.exerciseType === "cardio";
+    const durationOnly = isDurationOnly(exercise.exerciseType);
+    const repsOnly = isRepsOnly(exercise.exerciseType);
     const isRoutineEdit = !!this.session?.routineEditMode;
-    if (isCardio) {
+    if (durationOnly) {
+      header.createEl("span", {
+        text: `${set.duration ?? "0"}s`,
+        cls: "workout-session-set-card-target",
+      });
+      this.renderDurationEditor(header, set.duration, (duration) => {
+        set.duration = duration;
+        if (this.session) this.session.hasRoutineChanges = true;
+      });
+      if (this.session?.isCircle) {
+        header.createEl("span", { text: "pause", cls: "workout-session-set-card-target" });
+        this.renderDurationEditor(header, set.restTime, (restTime) => {
+          set.restTime = restTime;
+          if (this.session) this.session.hasRoutineChanges = true;
+        });
+      }
+    } else if (isCardio) {
       const targetText = `${set.duration ?? "0"}min / ${set.distance ?? "0"}km`;
       header.createEl("span", { text: targetText, cls: "workout-session-set-card-target" });
       this.renderCardioEditor(header, set.duration, set.distance, (duration, distance) => {
         set.duration = duration;
         set.distance = distance;
       });
+    } else if (repsOnly) {
+      header.createEl("span", {
+        text: `${set.targetReps ?? "0"} reps`,
+        cls: "workout-session-set-card-target",
+      });
+      this.renderRepsEditor(
+        header,
+        isRoutineEdit ? set.targetReps : set.actualReps,
+        (reps) => {
+          if (isRoutineEdit) {
+            set.targetReps = reps;
+            if (this.session) this.session.hasRoutineChanges = true;
+          } else {
+            set.actualReps = reps;
+          }
+        }
+      );
     } else {
       const targetText = `${set.targetWeight ?? "0"} × ${set.targetReps ?? "0"}`;
       header.createEl("span", { text: targetText, cls: "workout-session-set-card-target" });
@@ -609,6 +684,7 @@ export class WorkoutSessionView extends ItemView {
         } else {
           this.stopRestTimer(exerciseIndex, timerDisplay);
         }
+        this.plugin.persistActiveSession();
       };
     }
 
@@ -652,6 +728,43 @@ export class WorkoutSessionView extends ItemView {
     weightInput.onchange = update;
     repsInput.oninput = update;
     repsInput.onchange = update;
+  }
+
+  private renderRepsEditor(
+    container: HTMLElement,
+    reps: number | undefined,
+    onChange: (reps: number | undefined) => void
+  ) {
+    const wrapper = container.createDiv({
+      cls: "workout-session-set-editor workout-session-reps-editor",
+    });
+    const repsInput = wrapper.createEl("input", { type: "number", placeholder: "Reps" });
+    repsInput.value = reps !== undefined ? String(reps) : "";
+
+    const update = () => {
+      onChange(repsInput.value ? parseInt(repsInput.value) : undefined);
+    };
+    repsInput.oninput = update;
+    repsInput.onchange = update;
+  }
+
+  private renderDurationEditor(
+    container: HTMLElement,
+    duration: number | undefined,
+    onChange: (duration: number | undefined) => void
+  ) {
+    const wrapper = container.createDiv({
+      cls: "workout-session-set-editor workout-session-duration-editor",
+    });
+    const durationInput = wrapper.createEl("input", { type: "number", placeholder: "sec" });
+    durationInput.min = "0";
+    durationInput.value = duration !== undefined ? String(duration) : "";
+
+    const update = () => {
+      onChange(durationInput.value ? parseFloat(durationInput.value) : undefined);
+    };
+    durationInput.oninput = update;
+    durationInput.onchange = update;
   }
 
   private renderCardioEditor(
@@ -988,53 +1101,14 @@ export class WorkoutSessionView extends ItemView {
     gainPeak: number,
     durationSeconds: number
   ): void {
-    if (
-      vibrateEnabled &&
-      Platform.isMobile &&
-      typeof navigator !== "undefined" &&
-      "vibrate" in navigator
-    ) {
-      navigator.vibrate(vibrationPattern);
-    }
-
-    if (!soundEnabled || typeof window === "undefined") {
-      return;
-    }
-
-    try {
-      const AudioContextClass: typeof AudioContext | undefined = window.AudioContext;
-      if (!AudioContextClass) {
-        return;
-      }
-      if (!this.feedbackAudioContext || this.feedbackAudioContext.state === "closed") {
-        this.feedbackAudioContext = new AudioContextClass();
-      }
-      const audioContext = this.feedbackAudioContext;
-      if (audioContext.state === "suspended") {
-        void audioContext.resume();
-      }
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      const minGainValue = 0.0001;
-      const attackTimeSeconds = 0.01;
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-      gainNode.gain.setValueAtTime(minGainValue, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(
-        gainPeak,
-        audioContext.currentTime + attackTimeSeconds
-      );
-      gainNode.gain.exponentialRampToValueAtTime(
-        minGainValue,
-        audioContext.currentTime + durationSeconds
-      );
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      oscillator.start();
-      oscillator.stop(audioContext.currentTime + durationSeconds);
-    } catch {
-      // no-op: feedback is best-effort only
-    }
+    this.feedback.trigger(
+      vibrateEnabled,
+      soundEnabled,
+      vibrationPattern,
+      frequency,
+      gainPeak,
+      durationSeconds
+    );
   }
 
   async finishWithOptions(options: SessionFinishOptions): Promise<void> {

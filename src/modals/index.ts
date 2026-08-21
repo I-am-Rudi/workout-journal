@@ -14,3 +14,5 @@ export { AddSessionExerciseModal } from "./AddSessionExerciseModal";
 export { StrongImportModal } from "./StrongImportModal";
 export { ConfirmModal } from "./ConfirmModal";
 export { ExerciseDefinitionModal } from "./ExerciseDefinitionModal";
+export { CircuitStartModal } from "./CircuitStartModal";
+export { CircuitSummaryModal } from "./CircuitSummaryModal";

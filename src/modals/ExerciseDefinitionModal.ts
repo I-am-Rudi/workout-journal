@@ -1,7 +1,13 @@
 import { App, Modal, Notice, Setting } from "obsidian";
-import { ExerciseDefinition } from "../types";
+import { ExerciseDefinition, ExerciseType } from "../types";
 import WorkoutTrackerPlugin from "../plugin";
 import { createIdFromName } from "../utils/idUtils";
+import {
+  EXERCISE_TYPES,
+  EXERCISE_TYPE_LABELS,
+  isDurationOnly,
+  isRepsOnly,
+} from "../utils/exerciseTypeUtils";
 
 export class ExerciseDefinitionModal extends Modal {
   private plugin: WorkoutTrackerPlugin;
@@ -9,7 +15,7 @@ export class ExerciseDefinitionModal extends Modal {
   private onSave: () => void;
 
   private name = "";
-  private type: ExerciseDefinition["type"] = "strength";
+  private type: ExerciseType = "strength";
   private muscleGroups: string[] = [];
   private defaultSets: number | undefined;
   private defaultReps: number | undefined;
@@ -37,6 +43,10 @@ export class ExerciseDefinitionModal extends Modal {
   }
 
   onOpen() {
+    this.render();
+  }
+
+  private render() {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.createEl("h2", { text: this.existing ? "Edit exercise" : "New exercise" });
@@ -45,14 +55,16 @@ export class ExerciseDefinitionModal extends Modal {
       t.setValue(this.name).onChange((v) => { this.name = v.trim(); })
     );
 
-    new Setting(contentEl).setName("Type").addDropdown((d) =>
-      d.addOption("strength", "Strength")
-        .addOption("cardio", "Cardio")
-        .addOption("flexibility", "Flexibility")
-        .addOption("other", "Other")
-        .setValue(this.type)
-        .onChange((v) => { this.type = v as ExerciseDefinition["type"]; })
-    );
+    new Setting(contentEl).setName("Type").addDropdown((d) => {
+      for (const type of EXERCISE_TYPES) {
+        d.addOption(type, EXERCISE_TYPE_LABELS[type]);
+      }
+      d.setValue(this.type).onChange((v) => {
+        this.type = v as ExerciseType;
+        // The relevant default fields differ per type, so redraw the form.
+        this.render();
+      });
+    });
 
     new Setting(contentEl)
       .setName("Muscle groups")
@@ -63,30 +75,48 @@ export class ExerciseDefinitionModal extends Modal {
         })
       );
 
+    const repsOnly = isRepsOnly(this.type);
+    const durationOnly = isDurationOnly(this.type);
+
     new Setting(contentEl).setName("Default sets").addText((t) =>
       t.setPlaceholder("3").setValue(this.defaultSets !== undefined ? String(this.defaultSets) : "")
         .onChange((v) => { this.defaultSets = v ? parseInt(v) : undefined; })
     );
 
-    new Setting(contentEl).setName("Default reps").addText((t) =>
-      t.setPlaceholder("8").setValue(this.defaultReps !== undefined ? String(this.defaultReps) : "")
-        .onChange((v) => { this.defaultReps = v ? parseInt(v) : undefined; })
-    );
+    if (!durationOnly) {
+      new Setting(contentEl).setName("Default reps").addText((t) =>
+        t.setPlaceholder("8").setValue(this.defaultReps !== undefined ? String(this.defaultReps) : "")
+          .onChange((v) => { this.defaultReps = v ? parseInt(v) : undefined; })
+      );
+    }
 
-    new Setting(contentEl).setName("Default weight").addText((t) =>
-      t.setPlaceholder("0").setValue(this.defaultWeight !== undefined ? String(this.defaultWeight) : "")
-        .onChange((v) => { this.defaultWeight = v ? parseFloat(v) : undefined; })
-    );
+    if (!durationOnly && !repsOnly) {
+      new Setting(contentEl).setName("Default weight").addText((t) =>
+        t.setPlaceholder("0").setValue(this.defaultWeight !== undefined ? String(this.defaultWeight) : "")
+          .onChange((v) => { this.defaultWeight = v ? parseFloat(v) : undefined; })
+      );
+    }
 
-    new Setting(contentEl).setName("Default duration (min)").addText((t) =>
-      t.setPlaceholder("–").setValue(this.defaultDuration !== undefined ? String(this.defaultDuration) : "")
-        .onChange((v) => { this.defaultDuration = v ? parseFloat(v) : undefined; })
-    );
+    if (!repsOnly) {
+      const durationSetting = new Setting(contentEl).setName(
+        durationOnly ? "Default duration (s)" : "Default duration (min)"
+      );
+      if (durationOnly) {
+        durationSetting.setDesc("Time window used when this exercise runs in a circuit.");
+      }
+      durationSetting.addText((t) =>
+        t.setPlaceholder(durationOnly ? "30" : "–")
+          .setValue(this.defaultDuration !== undefined ? String(this.defaultDuration) : "")
+          .onChange((v) => { this.defaultDuration = v ? parseFloat(v) : undefined; })
+      );
+    }
 
-    new Setting(contentEl).setName("Default distance (km)").addText((t) =>
-      t.setPlaceholder("–").setValue(this.defaultDistance !== undefined ? String(this.defaultDistance) : "")
-        .onChange((v) => { this.defaultDistance = v ? parseFloat(v) : undefined; })
-    );
+    if (!durationOnly && !repsOnly) {
+      new Setting(contentEl).setName("Default distance (km)").addText((t) =>
+        t.setPlaceholder("–").setValue(this.defaultDistance !== undefined ? String(this.defaultDistance) : "")
+          .onChange((v) => { this.defaultDistance = v ? parseFloat(v) : undefined; })
+      );
+    }
 
     new Setting(contentEl).setName("Notes").addTextArea((t) =>
       t.setValue(this.notes).onChange((v) => { this.notes = v; })
@@ -104,20 +134,23 @@ export class ExerciseDefinitionModal extends Modal {
       new Notice("Exercise name is required.");
       return;
     }
+    const repsOnly = isRepsOnly(this.type);
+    const durationOnly = isDurationOnly(this.type);
     const def: ExerciseDefinition = {
       id: this.existing?.id ?? createIdFromName(this.name),
       name: this.name,
       type: this.type,
       muscleGroups: this.muscleGroups,
       defaultSets: this.defaultSets,
-      defaultReps: this.defaultReps,
-      defaultWeight: this.defaultWeight,
-      defaultDuration: this.defaultDuration,
-      defaultDistance: this.defaultDistance,
+      defaultReps: durationOnly ? undefined : this.defaultReps,
+      defaultWeight: durationOnly || repsOnly ? undefined : this.defaultWeight,
+      defaultDuration: repsOnly ? undefined : this.defaultDuration,
+      defaultDistance: durationOnly || repsOnly ? undefined : this.defaultDistance,
       notes: this.notes || undefined,
       filePath: this.existing?.filePath,
-      lastPerformedReps: this.existing?.lastPerformedReps,
-      lastPerformedWeight: this.existing?.lastPerformedWeight,
+      lastPerformedReps: durationOnly ? undefined : this.existing?.lastPerformedReps,
+      lastPerformedWeight:
+        durationOnly || repsOnly ? undefined : this.existing?.lastPerformedWeight,
     };
     await this.plugin.definitionService.createExerciseDefinition(def);
     new Notice(`Exercise saved: ${def.name}`);

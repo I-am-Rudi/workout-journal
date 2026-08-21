@@ -8,6 +8,7 @@ import {
   Plugin,
   TFile,
   WorkspaceLeaf,
+  normalizePath,
 } from "obsidian";
 import {
   ExerciseDefinition,
@@ -26,6 +27,12 @@ import { PerformanceCsvService } from "./utils/performanceCsvService";
 import { WorkoutSessionService } from "./utils/workoutSessionService";
 import { createIdFromName, generateId } from "./utils/idUtils";
 import {
+  DEFAULT_CIRCUIT_REST_SECONDS,
+  DEFAULT_CIRCUIT_WORK_SECONDS,
+} from "./utils/exerciseTypeUtils";
+import {
+  CircuitStartModal,
+  CircuitSummaryModal,
   ExerciseDefinitionModal,
   ExerciseTemplateModal,
   InputPromptModal,
@@ -39,16 +46,26 @@ import {
   WorkoutStatsModal,
   WorkoutTypeSelectionModal,
 } from "./modals";
+import { CircuitFinishResult } from "./modals/CircuitSummaryModal";
 import { PlanBuilderModal, WorkoutTrackerSettingTab } from "./settings";
 import {
   WORKOUT_SESSION_VIEW_TYPE,
   WorkoutSessionView,
 } from "./views/WorkoutSessionView";
+import {
+  CIRCUIT_SESSION_VIEW_TYPE,
+  CircuitSessionView,
+} from "./views/CircuitSessionView";
 
 export default class WorkoutTrackerPlugin extends Plugin {
   private static readonly DEFAULT_SINGLE_EXERCISE_SETS = 3;
   private static readonly MIGRATION_DEFAULT_REPS = 8;
   private static readonly MIGRATION_DEFAULT_WEIGHT = 0;
+  /** How often the in-memory session is snapshotted to disk (catches in-place edits). */
+  private static readonly SESSION_AUTOSAVE_INTERVAL_MS = 5000;
+  private static readonly SESSION_STATE_FILE = "active-session.json";
+  /** A restored session older than this is not auto-reopened on startup. */
+  private static readonly SESSION_AUTO_REOPEN_MAX_AGE_MS = 12 * 60 * 60 * 1000;
   settings: WorkoutTrackerSettings;
   fileService: WorkoutFileService;
   definitionService: DefinitionFileService;
@@ -58,9 +75,13 @@ export default class WorkoutTrackerPlugin extends Plugin {
   private sessionLeaf: WorkspaceLeaf | null = null;
   private fileModifyEventRef: EventRef | undefined;
   private syncTimeouts: Map<string, number> = new Map();
+  private lastPersistedSessionJson: string | null = null;
+  private sessionWriteQueue: Promise<void> = Promise.resolve();
+  private restoredSessionSavedAt: number | null = null;
 
   async onload() {
     await this.loadSettings();
+    await this.restorePersistedSession();
 
     this.fileService = new WorkoutFileService(
       this.app,
@@ -79,6 +100,10 @@ export default class WorkoutTrackerPlugin extends Plugin {
     this.registerView(
       WORKOUT_SESSION_VIEW_TYPE,
       (leaf) => new WorkoutSessionView(leaf, this)
+    );
+    this.registerView(
+      CIRCUIT_SESSION_VIEW_TYPE,
+      (leaf) => new CircuitSessionView(leaf, this)
     );
 
     this.fileModifyEventRef = this.app.vault.on(
@@ -119,7 +144,25 @@ export default class WorkoutTrackerPlugin extends Plugin {
       ribbonIcon.addClass("workout-tracker-ribbon-class");
     }
 
+    // The session is mutated in place by the session view, so snapshot it
+    // periodically and whenever the app is about to be backgrounded. On iOS the
+    // OS can terminate a backgrounded Obsidian without any further JS running.
+    this.registerInterval(
+      window.setInterval(
+        () => this.persistActiveSession(),
+        WorkoutTrackerPlugin.SESSION_AUTOSAVE_INTERVAL_MS
+      ) as unknown as number
+    );
+    this.registerDomEvent(activeDocument, "visibilitychange", () => {
+      if (activeDocument.visibilityState === "hidden") {
+        this.persistActiveSession();
+      }
+    });
+    this.registerDomEvent(window, "blur", () => this.persistActiveSession());
+    this.registerDomEvent(window, "pagehide", () => this.persistActiveSession());
+
     this.app.workspace.onLayoutReady(async () => {
+      await this.attachRestoredSessionToViews();
       await this.definitionService.ensureFolders();
       await this.performanceCsvService.ensureFile();
     });
@@ -220,11 +263,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
       id: "open-workout-session-popout",
       name: "Open active workout session in popout",
       callback: async () => {
-        if (!this.activeSession) {
-          new Notice("No active session. Start one from a routine or plan first.");
-          return;
-        }
-        await this.openSessionView(true);
+        await this.openActiveSessionView(true);
       },
     });
 
@@ -241,6 +280,14 @@ export default class WorkoutTrackerPlugin extends Plugin {
       name: "Create routine note",
       callback: async () => {
         await this.createRoutineNoteFromPrompt();
+      },
+    });
+
+    this.addCommand({
+      id: "create-circuit-routine-note",
+      name: "Create circuit routine note",
+      callback: async () => {
+        await this.createRoutineNoteFromPrompt(true);
       },
     });
 
@@ -317,11 +364,194 @@ export default class WorkoutTrackerPlugin extends Plugin {
   }
 
   onunload() {
+    this.persistActiveSession();
     if (this.fileModifyEventRef) {
       this.app.vault.offref(this.fileModifyEventRef);
     }
     this.syncTimeouts.forEach((timeout) => window.clearTimeout(timeout));
     this.syncTimeouts.clear();
+  }
+
+  /** Path of the crash-recovery snapshot inside the plugin's own config folder. */
+  private getSessionStatePath(): string {
+    const pluginDir =
+      this.manifest.dir ??
+      `${this.app.vault.configDir}/plugins/${this.manifest.id}`;
+    return normalizePath(
+      `${pluginDir}/${WorkoutTrackerPlugin.SESSION_STATE_FILE}`
+    );
+  }
+
+  /**
+   * Replaces the active session and immediately writes the change to disk so a
+   * start/finish/cancel is never lost, even if the app dies right afterwards.
+   */
+  setActiveSession(session: WorkoutSession | null): void {
+    this.activeSession = session;
+    this.persistActiveSession();
+  }
+
+  /**
+   * Writes the current session to disk if it changed since the last write.
+   * Cheap enough to call on every render; writes are queued so they can never
+   * interleave into a half-written file.
+   */
+  persistActiveSession(): void {
+    const snapshot = this.activeSession
+      ? JSON.stringify(this.activeSession)
+      : null;
+    if (snapshot === this.lastPersistedSessionJson) {
+      return;
+    }
+    this.lastPersistedSessionJson = snapshot;
+
+    const path = this.getSessionStatePath();
+    const payload =
+      snapshot === null
+        ? null
+        : JSON.stringify({
+            version: 1,
+            savedAt: new Date().toISOString(),
+            session: this.activeSession,
+          });
+
+    this.sessionWriteQueue = this.sessionWriteQueue
+      .then(async () => {
+        const adapter = this.app.vault.adapter;
+        if (payload === null) {
+          if (await adapter.exists(path)) {
+            await adapter.remove(path);
+          }
+          return;
+        }
+        await adapter.write(path, payload);
+      })
+      .catch((error) => {
+        console.error("Workout Journal: could not persist active session.", error);
+        // Force a retry on the next autosave tick.
+        this.lastPersistedSessionJson = null;
+      });
+  }
+
+  /** Reads back a session left behind by a crash, a force-quit, or an iOS kill. */
+  private async restorePersistedSession(): Promise<void> {
+    const path = this.getSessionStatePath();
+    try {
+      if (!(await this.app.vault.adapter.exists(path))) {
+        return;
+      }
+      const raw = await this.app.vault.adapter.read(path);
+      const parsed = JSON.parse(raw) as Record<string, unknown> | null;
+      const session = parsed?.session as WorkoutSession | undefined;
+      if (
+        !session ||
+        typeof session.id !== "string" ||
+        !Array.isArray(session.exercises)
+      ) {
+        return;
+      }
+      this.activeSession = session;
+      this.lastPersistedSessionJson = JSON.stringify(session);
+      const savedAt = Date.parse(String(parsed?.savedAt ?? ""));
+      this.restoredSessionSavedAt = Number.isNaN(savedAt) ? null : savedAt;
+    } catch (error) {
+      console.error(
+        "Workout Journal: could not restore the previous workout session.",
+        error
+      );
+    }
+  }
+
+  /**
+   * Pushes a restored session into session views that the workspace reopened
+   * before (or without) `openSessionView()` running.
+   */
+  private async attachRestoredSessionToViews(): Promise<void> {
+    const session = this.activeSession;
+    if (!session) return;
+
+    const leaves = this.app.workspace.getLeavesOfType(this.viewTypeForSession(session));
+    for (const leaf of leaves) {
+      this.sessionLeaf = leaf;
+      const view = leaf.view;
+      if (view instanceof WorkoutSessionView && !view.session) {
+        view.setSession(session);
+      } else if (view instanceof CircuitSessionView && !view.session) {
+        view.setSession(session);
+      }
+    }
+    if (leaves.length) return;
+
+    // The workspace did not restore a session panel (typical after an iOS kill).
+    // Reopen it for a session that was still being worked on; for an older
+    // leftover just mention it, so a forgotten session can't hijack every start.
+    const age =
+      this.restoredSessionSavedAt === null
+        ? Number.POSITIVE_INFINITY
+        : Date.now() - this.restoredSessionSavedAt;
+    if (age <= WorkoutTrackerPlugin.SESSION_AUTO_REOPEN_MAX_AGE_MS) {
+      await this.openSessionView(false);
+      new Notice(`Restored unfinished workout session "${session.name}".`);
+    } else {
+      new Notice(
+        `Unfinished workout session "${session.name}" restored. Resume it from the Workout Journal ribbon icon.`
+      );
+    }
+  }
+
+  /**
+   * Circuit sessions get the guided player; editing a circuit routine still
+   * uses the regular session view, which doubles as the routine editor.
+   */
+  private viewTypeForSession(session: WorkoutSession): string {
+    return session.isCircle && !session.routineEditMode
+      ? CIRCUIT_SESSION_VIEW_TYPE
+      : WORKOUT_SESSION_VIEW_TYPE;
+  }
+
+  /** Reveals the panel for the active session, reusing an already open one. */
+  async openActiveSessionView(preferPopout = false): Promise<void> {
+    const session = this.activeSession;
+    if (!session) {
+      new Notice("No active session. Start one from a routine or plan first.");
+      return;
+    }
+
+    const [existing] = this.app.workspace.getLeavesOfType(
+      this.viewTypeForSession(session)
+    );
+    if (existing && !preferPopout) {
+      this.sessionLeaf = existing;
+      const view = existing.view;
+      if (view instanceof WorkoutSessionView && !view.session) {
+        view.setSession(session);
+      } else if (view instanceof CircuitSessionView && !view.session) {
+        view.setSession(session);
+      }
+      void this.app.workspace.revealLeaf(existing);
+      return;
+    }
+
+    await this.openSessionView(preferPopout);
+  }
+
+  /** Closes the session panel, including a leaf restored after an app restart. */
+  private async closeSessionView(): Promise<void> {
+    const leaves = new Set<WorkspaceLeaf>([
+      ...this.app.workspace.getLeavesOfType(WORKOUT_SESSION_VIEW_TYPE),
+      ...this.app.workspace.getLeavesOfType(CIRCUIT_SESSION_VIEW_TYPE),
+    ]);
+    if (this.sessionLeaf) {
+      leaves.add(this.sessionLeaf);
+    }
+    for (const leaf of leaves) {
+      try {
+        await leaf.setViewState({ type: "empty" });
+      } catch (error) {
+        console.debug("Workout Journal: session leaf already closed.", error);
+      }
+    }
+    this.sessionLeaf = null;
   }
 
   async loadSettings() {
@@ -388,6 +618,10 @@ export default class WorkoutTrackerPlugin extends Plugin {
     if (resolved.warnings.length) {
       new Notice(resolved.warnings.join("\n"));
     }
+    if (routine.isCircle) {
+      await this.startCircuitSession(resolved.resolved, preferPopout, plan);
+      return;
+    }
     const exerciseDefs = await this.definitionService.loadExerciseDefinitions();
     const exerciseNotesMap = new Map(
       exerciseDefs
@@ -422,7 +656,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
         exerciseTypeMap,
       }
     );
-    this.activeSession = session;
+    this.setActiveSession(session);
     await this.openSessionView(preferPopout);
   }
 
@@ -470,9 +704,10 @@ export default class WorkoutTrackerPlugin extends Plugin {
       hasRoutineChanges: false,
       routineEditMode: true,
       editingRoutineFilePath: file.path,
+      isCircle: routine.isCircle,
     };
 
-    this.activeSession = session;
+    this.setActiveSession(session);
     await this.openSessionView(false);
   }
 
@@ -516,11 +751,8 @@ export default class WorkoutTrackerPlugin extends Plugin {
     await this.definitionService.updateRoutineDefinition(updated);
     new Notice(`Routine "${updated.name}" saved.`);
 
-    this.activeSession = null;
-    if (this.sessionLeaf) {
-      await this.sessionLeaf.setViewState({ type: "empty" });
-      this.sessionLeaf = null;
-    }
+    this.setActiveSession(null);
+    await this.closeSessionView();
   }
 
   async startQuickLogSession(preferPopout: boolean): Promise<void> {
@@ -590,21 +822,178 @@ export default class WorkoutTrackerPlugin extends Plugin {
       }
     }
 
-    this.activeSession = null;
-    if (this.sessionLeaf) {
-      await this.sessionLeaf.setViewState({ type: "empty" });
-      this.sessionLeaf = null;
-    }
+    this.setActiveSession(null);
+    await this.closeSessionView();
     new Notice("Workout finished and saved.");
   }
 
   async cancelActiveSession(): Promise<void> {
-    this.activeSession = null;
-    if (this.sessionLeaf) {
-      await this.sessionLeaf.setViewState({ type: "empty" });
-      this.sessionLeaf = null;
-    }
+    this.setActiveSession(null);
+    await this.closeSessionView();
     new Notice("Workout session cancelled.");
+  }
+
+  /**
+   * Circuit routines run in the guided player instead of the tracking view.
+   * Only duration-only exercises can be timed, so anything else is dropped with
+   * a warning rather than silently breaking the timeline.
+   */
+  private async startCircuitSession(
+    routine: RoutineDefinition,
+    preferPopout: boolean,
+    plan?: WorkoutPlanDefinition
+  ): Promise<void> {
+    const exerciseDefs = await this.definitionService.loadExerciseDefinitions();
+    const defById = new Map(exerciseDefs.map((def) => [def.id, def]));
+
+    const skipped: string[] = [];
+    const usable = routine.exercises.filter((entry) => {
+      const def = defById.get(entry.exerciseId);
+      if (def?.type === "duration-only") return true;
+      skipped.push(entry.exerciseName);
+      return false;
+    });
+
+    if (skipped.length) {
+      new Notice(
+        `Circuit "${routine.name}" skips ${skipped.join(", ")} — a circuit can only contain duration-only exercises.`
+      );
+    }
+    if (!usable.length) {
+      new Notice(
+        `Circuit "${routine.name}" has no duration-only exercises to run.`
+      );
+      return;
+    }
+
+    const circuitRoutine: RoutineDefinition = { ...routine, exercises: usable };
+
+    new CircuitStartModal(this.app, circuitRoutine, (rounds) => {
+      void (async () => {
+        const session: WorkoutSession = {
+          id: generateId(),
+          date: new Date().toISOString().split("T")[0],
+          name: routine.name,
+          routineId: routine.id,
+          routineName: routine.name,
+          planId: plan?.id,
+          planName: plan?.name,
+          isCircle: true,
+          circuitRounds: rounds,
+          hasRoutineChanges: false,
+          notes: routine.notes,
+          exercises: usable.map((entry) => {
+            const def = defById.get(entry.exerciseId);
+            const set = entry.sets[0];
+            return {
+              exerciseId: entry.exerciseId,
+              exerciseName: entry.exerciseName,
+              exerciseType: def?.type,
+              exerciseFilePath: def?.filePath,
+              exerciseNotes: def?.notes,
+              completed: false,
+              notes: entry.notes,
+              sets: [
+                {
+                  setIndex: 1,
+                  duration:
+                    set?.duration ??
+                    def?.defaultDuration ??
+                    DEFAULT_CIRCUIT_WORK_SECONDS,
+                  restTime: set?.restTime ?? DEFAULT_CIRCUIT_REST_SECONDS,
+                  completed: false,
+                },
+              ],
+            };
+          }),
+        };
+
+        this.setActiveSession(session);
+        await this.openSessionView(preferPopout, true);
+      })();
+    }).open();
+  }
+
+  /** Opens the post-circuit overview once the player has finished or stopped. */
+  openCircuitSummary(
+    performed: Array<{ exerciseIndex: number; seconds: number[] }>
+  ): void {
+    const session = this.activeSession;
+    if (!session) return;
+
+    new CircuitSummaryModal(
+      this.app,
+      session,
+      performed,
+      (result) => {
+        void this.finishCircuitSession(session, performed, result);
+      },
+      () => {
+        void this.cancelActiveSession();
+      }
+    ).open();
+  }
+
+  private async finishCircuitSession(
+    session: WorkoutSession,
+    performed: Array<{ exerciseIndex: number; seconds: number[] }>,
+    result: CircuitFinishResult
+  ): Promise<void> {
+    const performedByIndex = new Map(
+      performed.map((entry) => [entry.exerciseIndex, entry.seconds])
+    );
+
+    // The log records the intervals actually performed, one set per round.
+    const workout: Workout = {
+      id: session.id,
+      date: session.date,
+      name: session.name,
+      sourceRoutineId: session.routineId,
+      sourcePlanId: session.planId,
+      notes: session.notes,
+      exercises: session.exercises
+        .map((exercise, index) => ({
+          name: exercise.exerciseName,
+          notes: exercise.notes,
+          sets: (performedByIndex.get(index) ?? []).map((seconds) => ({
+            duration: seconds,
+          })),
+        }))
+        .filter((exercise) => exercise.sets.length > 0),
+    };
+
+    await this.createWorkoutFile(workout);
+
+    if (result.updateRoutine && session.routineId) {
+      const routine = await this.definitionService.loadRoutineById(session.routineId);
+      if (routine) {
+        const byExerciseId = new Map(
+          result.adjustments.map((adjustment) => [adjustment.exerciseId, adjustment])
+        );
+        const updated: RoutineDefinition = {
+          ...routine,
+          exercises: routine.exercises.map((entry) => {
+            const adjustment = byExerciseId.get(entry.exerciseId);
+            if (!adjustment) return entry;
+            return {
+              ...entry,
+              sets: [
+                {
+                  ...(entry.sets[0] ?? {}),
+                  duration: adjustment.workSeconds,
+                  restTime: adjustment.restSeconds,
+                },
+              ],
+            };
+          }),
+        };
+        await this.definitionService.updateRoutineDefinition(updated);
+      }
+    }
+
+    this.setActiveSession(null);
+    await this.closeSessionView();
+    new Notice("Circuit finished and saved.");
   }
 
   async startWorkoutFromCurrentNote(): Promise<void> {
@@ -715,7 +1104,10 @@ export default class WorkoutTrackerPlugin extends Plugin {
     );
   }
 
-  private async openSessionView(preferPopout: boolean): Promise<void> {
+  private async openSessionView(
+    preferPopout: boolean,
+    autoStartCircuit = false
+  ): Promise<void> {
     let leaf: WorkspaceLeaf | null = null;
     if (preferPopout && !Platform.isMobile) {
       try {
@@ -731,14 +1123,19 @@ export default class WorkoutTrackerPlugin extends Plugin {
 
     this.sessionLeaf = leaf;
     await leaf.setViewState({
-      type: WORKOUT_SESSION_VIEW_TYPE,
+      type: this.activeSession
+        ? this.viewTypeForSession(this.activeSession)
+        : WORKOUT_SESSION_VIEW_TYPE,
       active: true,
     });
     void this.app.workspace.revealLeaf(leaf);
 
     const view = leaf.view;
-    if (view instanceof WorkoutSessionView && this.activeSession) {
+    if (!this.activeSession) return;
+    if (view instanceof WorkoutSessionView) {
       view.setSession(this.activeSession);
+    } else if (view instanceof CircuitSessionView) {
+      view.setSession(this.activeSession, autoStartCircuit);
     }
   }
 
@@ -757,17 +1154,20 @@ export default class WorkoutTrackerPlugin extends Plugin {
     new Notice(`Exercise note created: ${name}`);
   }
 
-  async createRoutineNoteFromPrompt(): Promise<void> {
-    const name = await this.prompt("Routine name");
+  async createRoutineNoteFromPrompt(isCircle = false): Promise<void> {
+    const name = await this.prompt(isCircle ? "Circuit routine name" : "Routine name");
     if (!name) return;
     const routine: RoutineDefinition = {
       id: this.createIdFromName(name),
       name,
       exercises: [],
-      estimatedDuration: 60,
+      estimatedDuration: isCircle ? undefined : 60,
+      isCircle: isCircle || undefined,
     };
     await this.definitionService.createRoutineDefinition(routine);
-    new Notice(`Routine note created: ${name}`);
+    new Notice(
+      isCircle ? `Circuit routine note created: ${name}` : `Routine note created: ${name}`
+    );
   }
 
   private async storeLastPerformedValues(session: WorkoutSession): Promise<void> {
@@ -870,6 +1270,10 @@ export default class WorkoutTrackerPlugin extends Plugin {
       { id: "pull-up", name: "Pull-up", type: "strength", muscleGroups: ["back", "biceps"], defaultSets: 3, defaultReps: 8 },
       { id: "running", name: "Running", type: "cardio", muscleGroups: [], defaultDuration: 30, defaultDistance: 5 },
       { id: "plank", name: "Plank", type: "flexibility", muscleGroups: ["core"], defaultSets: 3, defaultDuration: 1 },
+      { id: "push-up", name: "Push-up", type: "reps-only", muscleGroups: ["chest", "triceps"], defaultSets: 3, defaultReps: 12 },
+      { id: "mountain-climbers", name: "Mountain Climbers", type: "duration-only", muscleGroups: ["core"], defaultSets: 1, defaultDuration: 40 },
+      { id: "jumping-jacks", name: "Jumping Jacks", type: "duration-only", muscleGroups: ["full body"], defaultSets: 1, defaultDuration: 40 },
+      { id: "high-knees", name: "High Knees", type: "duration-only", muscleGroups: ["legs", "core"], defaultSets: 1, defaultDuration: 40 },
     ];
 
     for (const def of exerciseExamples) {
@@ -885,13 +1289,25 @@ export default class WorkoutTrackerPlugin extends Plugin {
           { exerciseId: "bench-press", exerciseName: "Bench Press", sets: [{ reps: 8, weight: 60 }, { reps: 8, weight: 60 }, { reps: 8, weight: 60 }] },
         ],
       },
+      {
+        id: "morning-circuit",
+        name: "Morning Circuit",
+        isCircle: true,
+        exercises: [
+          { exerciseId: "jumping-jacks", exerciseName: "Jumping Jacks", sets: [{ duration: 40, restTime: 20 }] },
+          { exerciseId: "mountain-climbers", exerciseName: "Mountain Climbers", sets: [{ duration: 40, restTime: 20 }] },
+          { exerciseId: "high-knees", exerciseName: "High Knees", sets: [{ duration: 40, restTime: 20 }] },
+        ],
+      },
     ];
 
     for (const routine of routineExamples) {
       await this.definitionService.createRoutineDefinition(routine);
     }
 
-    new Notice(`Added ${exerciseExamples.length} example exercises and ${routineExamples.length} example routine.`);
+    new Notice(
+      `Added ${exerciseExamples.length} example exercises and ${routineExamples.length} example routines.`
+    );
   }
 
   private prompt(label: string, defaultValue?: string): Promise<string | null> {

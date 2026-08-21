@@ -41,9 +41,22 @@ export interface MigrationState {
   routineCount: number;
 }
 
+/**
+ * `reps-only` exercises track reps without a weight; `duration-only` exercises
+ * track a time window (in seconds) only and are the sole type allowed inside a
+ * circuit routine.
+ */
+export type ExerciseType =
+  | "strength"
+  | "cardio"
+  | "flexibility"
+  | "other"
+  | "reps-only"
+  | "duration-only";
+
 export interface ExerciseTemplate {
   name: string;
-  type: "strength" | "cardio" | "flexibility" | "other";
+  type: ExerciseType;
   defaultSets?: number;
   defaultReps?: number;
   defaultWeight?: number;
@@ -94,7 +107,7 @@ export type WorkoutTrackerNoteType =
 export interface ExerciseDefinition {
   id: string;
   name: string;
-  type: "strength" | "cardio" | "flexibility" | "other";
+  type: ExerciseType;
   muscleGroups: string[];
   notes?: string;
   defaultSets?: number;
@@ -132,6 +145,12 @@ export interface RoutineDefinition {
   notes?: string;
   planTags?: string[];
   filePath?: string;
+  /**
+   * Stored as `wj-circle`. When true the routine is a circuit: it may only
+   * contain `duration-only` exercises and runs in the guided circuit player
+   * instead of the regular session view.
+   */
+  isCircle?: boolean;
 }
 
 export interface WorkoutPlanRoutineEntry {
@@ -169,7 +188,7 @@ export interface WorkoutSessionSet {
 export interface WorkoutSessionExercise {
   exerciseId: string;
   exerciseName: string;
-  exerciseType?: "strength" | "cardio" | "flexibility" | "other";
+  exerciseType?: ExerciseType;
   sets: WorkoutSessionSet[];
   completed: boolean;
   notes?: string;
@@ -191,10 +210,31 @@ export interface WorkoutSession {
   hasRoutineChanges: boolean;
   routineEditMode?: boolean;
   editingRoutineFilePath?: string;
+  /** True when the source routine is a circuit (`wj-circle`). */
+  isCircle?: boolean;
+  /** Number of times the circuit is repeated. Only set for circuit sessions. */
+  circuitRounds?: number;
 }
 
 export interface SessionFinishOptions {
   fillUncompletedSets: boolean;
   storeNewTargets: boolean;
   routineChangeStrategy: "overwrite" | "create_new" | "ignore";
+}
+
+/** One leg of a running circuit: either a work interval or the pause after it. */
+export interface CircuitStep {
+  round: number;
+  exerciseIndex: number;
+  exerciseName: string;
+  kind: "work" | "rest";
+  seconds: number;
+}
+
+/** Per-exercise work/rest times collected in the post-circuit overview. */
+export interface CircuitTimingAdjustment {
+  exerciseId: string;
+  exerciseName: string;
+  workSeconds: number;
+  restSeconds: number;
 }

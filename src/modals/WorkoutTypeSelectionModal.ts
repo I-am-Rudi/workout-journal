@@ -17,6 +17,19 @@ export class WorkoutTypeSelectionModal extends Modal {
 
     contentEl.createEl("h2", { text: "Workout Journal" });
 
+    const activeSession = this.plugin.activeSession;
+    if (activeSession) {
+      new Setting(contentEl)
+        .setName("Resume session")
+        .setDesc(`Continue the unfinished session "${activeSession.name}"`)
+        .addButton((btn) =>
+          btn.setButtonText("Resume").setCta().onClick(() => {
+            this.close();
+            void this.plugin.openActiveSessionView();
+          })
+        );
+    }
+
     new Setting(contentEl)
       .setName("Quick log")
       .setDesc("Open an active session with an empty untitled routine")

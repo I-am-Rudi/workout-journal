@@ -27,7 +27,7 @@ export class RoutineSelectionModal extends Modal {
 
     this.routines.forEach((routine) => {
       new Setting(contentEl)
-        .setName(routine.name)
+        .setName(routine.isCircle ? `${routine.name} (circuit)` : routine.name)
         .setDesc(
           `${routine.exercises.length} exercises${
             routine.estimatedDuration ? ` • ~${routine.estimatedDuration} min` : ""

@@ -1,8 +1,13 @@
 import { App, Modal, Notice, Setting } from "obsidian";
-import { ExerciseDefinition, SetType, WorkoutSessionExercise } from "../types";
+import { ExerciseDefinition, ExerciseType, SetType, WorkoutSessionExercise } from "../types";
 import WorkoutTrackerPlugin from "../plugin";
 import { createIdFromName } from "../utils/idUtils";
 import { PerformanceCsvService } from "../utils/performanceCsvService";
+import {
+  DEFAULT_CIRCUIT_WORK_SECONDS,
+  EXERCISE_TYPE_LABELS,
+  isDurationOnly,
+} from "../utils/exerciseTypeUtils";
 
 const VALID_SET_TYPES = new Set<SetType>(["default", "warmup", "dropset", "myoreps"]);
 
@@ -23,6 +28,8 @@ export class AddSessionExerciseModal extends Modal {
   private listEl: HTMLElement;
   private csvService: PerformanceCsvService;
   private routineId: string | undefined;
+  /** When set, only exercises of this type can be picked or created. */
+  private restrictToType: ExerciseType | undefined;
 
   constructor(
     app: App,
@@ -30,20 +37,31 @@ export class AddSessionExerciseModal extends Modal {
     exercises: ExerciseDefinition[],
     onAdd: (exercise: WorkoutSessionExercise) => void,
     csvService: PerformanceCsvService,
-    routineId?: string
+    routineId?: string,
+    restrictToType?: ExerciseType
   ) {
     super(app);
     this.plugin = plugin;
-    this.exercises = exercises;
     this.onAdd = onAdd;
     this.csvService = csvService;
     this.routineId = routineId;
+    this.restrictToType = restrictToType;
+    this.exercises = restrictToType
+      ? exercises.filter((exercise) => exercise.type === restrictToType)
+      : exercises;
   }
 
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.createEl("h2", { text: "Add exercise to session" });
+
+    if (this.restrictToType) {
+      contentEl.createEl("p", {
+        text: `Only ${EXERCISE_TYPE_LABELS[this.restrictToType].toLowerCase()} exercises can be used here.`,
+        cls: "setting-item-description",
+      });
+    }
 
     new Setting(contentEl).setName("Search").addText((text) => {
       text.setPlaceholder("Type to filter exercises…").onChange((value) => {
@@ -102,14 +120,24 @@ export class AddSessionExerciseModal extends Modal {
 
   private async createAndAddExercise(name: string): Promise<void> {
     const id = createIdFromName(name);
-    const def: ExerciseDefinition = {
-      id,
-      name,
-      type: "strength",
-      muscleGroups: [],
-      defaultSets: DEFAULT_NUM_SETS,
-      defaultReps: 8,
-    };
+    const type = this.restrictToType ?? "strength";
+    const def: ExerciseDefinition = isDurationOnly(type)
+      ? {
+          id,
+          name,
+          type,
+          muscleGroups: [],
+          defaultSets: 1,
+          defaultDuration: DEFAULT_CIRCUIT_WORK_SECONDS,
+        }
+      : {
+          id,
+          name,
+          type,
+          muscleGroups: [],
+          defaultSets: DEFAULT_NUM_SETS,
+          defaultReps: 8,
+        };
     const file = await this.plugin.definitionService.createExerciseDefinition(def);
     if (file) {
       def.filePath = file.path;
@@ -120,6 +148,24 @@ export class AddSessionExerciseModal extends Modal {
   }
 
   private async buildSessionExercise(ex: ExerciseDefinition): Promise<WorkoutSessionExercise> {
+    // duration-only exercises carry no reps/weight history worth restoring.
+    if (isDurationOnly(ex.type)) {
+      const numSets = ex.defaultSets ?? 1;
+      return {
+        exerciseId: ex.id,
+        exerciseName: ex.name,
+        exerciseType: ex.type,
+        sets: Array.from({ length: numSets }, (_, i) => ({
+          setIndex: i + 1,
+          duration: ex.defaultDuration ?? DEFAULT_CIRCUIT_WORK_SECONDS,
+          completed: false,
+        })),
+        completed: false,
+        exerciseNotes: ex.notes || undefined,
+        exerciseFilePath: ex.filePath,
+      };
+    }
+
     const lastSets = await this.csvService.getLatestSetsForExercise(this.routineId, ex.id);
     if (lastSets && lastSets.length > 0) {
       const sets = lastSets.map((s) => ({

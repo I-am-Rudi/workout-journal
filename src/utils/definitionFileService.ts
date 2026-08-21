@@ -8,6 +8,7 @@ import {
 import { generateId } from "./idUtils";
 import {
   ExerciseDefinition,
+  ExerciseType,
   RoutineDefinition,
   RoutineExerciseEntry,
   WorkoutPlanDefinition,
@@ -15,6 +16,7 @@ import {
   WorkoutTrackerSettings,
 } from "../types";
 import { parseTemplateFrontmatter, appendTemplateBody } from "./noteTemplateUtils";
+import { EXERCISE_TYPES } from "./exerciseTypeUtils";
 
 export class DefinitionFileService {
   app: App;
@@ -171,6 +173,7 @@ export class DefinitionFileService {
         notes: this.asString(frontmatter['wj-notes']),
         planTags: this.asStringArray(frontmatter['wj-plan-tags']),
         filePath: file.path,
+        isCircle: frontmatter['wj-circle'] === true,
       };
     } catch (error) {
       console.error(`Error parsing routine definition ${file.path}`, error);
@@ -277,11 +280,22 @@ export class DefinitionFileService {
       seenExerciseIds.add(exercise.id);
     }
 
+    const exerciseTypeById = new Map(exercises.map((exercise) => [exercise.id, exercise.type]));
     for (const routine of routines) {
       const resolved = await this.resolveRoutineExercises(routine);
       warnings.push(...resolved.warnings);
       if (!routine.exercises.length) {
         warnings.push(`Routine "${routine.name}" has no exercises.`);
+      }
+      if (routine.isCircle) {
+        const invalid = resolved.resolved.exercises.filter(
+          (entry) => exerciseTypeById.get(entry.exerciseId) !== "duration-only"
+        );
+        for (const entry of invalid) {
+          warnings.push(
+            `Circuit routine "${routine.name}" contains "${entry.exerciseName}", which is not a duration-only exercise.`
+          );
+        }
       }
     }
 
@@ -368,19 +382,26 @@ export class DefinitionFileService {
       'wj-estimated-duration': def.estimatedDuration,
       'wj-notes': def.notes,
       'wj-plan-tags': def.planTags || [],
+      // Omitted entirely for regular routines so existing notes stay untouched.
+      'wj-circle': def.isCircle ? true : undefined,
     };
     const templateFm = parseTemplateFrontmatter(
       this.settings.noteTemplates?.routine?.frontmatter
     );
     const frontmatter = { ...templateFm, ...baseFrontmatter };
     let body = `---\n${stringifyYaml(frontmatter)}---\n\n# ${def.name}\n\n`;
+    if (def.isCircle) {
+      body += `**Circuit routine**\n\n`;
+    }
     if (def.estimatedDuration) {
       body += `**Estimated Duration:** ${def.estimatedDuration} min\n\n`;
     }
     if (def.notes) {
       body += `${def.notes}\n\n`;
     }
-    body += this.renderRoutineTable(def.exercises);
+    body += def.isCircle
+      ? this.renderCircuitTable(def.exercises)
+      : this.renderRoutineTable(def.exercises);
     return appendTemplateBody(body, this.settings.noteTemplates?.routine?.body);
   }
 
@@ -431,6 +452,24 @@ export class DefinitionFileService {
       content += "\n";
     }
     return content;
+  }
+
+  private renderCircuitTable(exercises: RoutineExerciseEntry[]): string {
+    let content = "## Circuit\n\n";
+    if (!exercises.length) {
+      return content + "*No exercises added yet.*\n";
+    }
+    content += "| # | Exercise | Work (s) | Pause (s) |\n";
+    content += "|---|----------|----------|-----------|\n";
+    exercises.forEach((exercise, index) => {
+      // Escape the alias pipe for table cells: [[path|Name]] → [[path\|Name]]
+      const nameCell = exercise.exerciseLink
+        ? exercise.exerciseLink.replace(/\]\]$/, `\\|${exercise.exerciseName}]]`)
+        : exercise.exerciseName;
+      const set = exercise.sets[0] || {};
+      content += `| ${index + 1} | ${nameCell} | ${set.duration ?? "-"} | ${set.restTime ?? "-"} |\n`;
+    });
+    return content + "\n";
   }
 
   private renderPlanTable(routines: WorkoutPlanRoutineEntry[]): string {
@@ -505,17 +544,9 @@ export class DefinitionFileService {
     return value.filter((entry): entry is string => typeof entry === "string");
   }
 
-  private asExerciseType(
-    value: unknown
-  ): ExerciseDefinition["type"] | undefined {
-    if (
-      value === "strength" ||
-      value === "cardio" ||
-      value === "flexibility" ||
-      value === "other"
-    ) {
-      return value;
-    }
-    return undefined;
+  private asExerciseType(value: unknown): ExerciseType | undefined {
+    return typeof value === "string" && EXERCISE_TYPES.includes(value as ExerciseType)
+      ? (value as ExerciseType)
+      : undefined;
   }
 }

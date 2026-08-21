@@ -37,7 +37,8 @@ export class RoutineSettingsPage {
 
       for (const routine of routines) {
         const exerciseCount = routine.exercises.length;
-        const desc = `${exerciseCount} exercise${exerciseCount !== 1 ? "s" : ""}` +
+        const desc = (routine.isCircle ? "Circuit · " : "") +
+          `${exerciseCount} exercise${exerciseCount !== 1 ? "s" : ""}` +
           (exerciseCount > 0 ? ` · ${routine.exercises.map((e) => e.exerciseName).join(", ")}` : "");
 
         const setting = new Setting(listContainer).setName(routine.name).setDesc(desc);
@@ -80,13 +81,22 @@ export class RoutineSettingsPage {
 
     await renderList();
 
-    new Setting(containerEl).addButton((btn) =>
-      btn.setButtonText("Add routine").setCta().onClick(() => {
-        void (async () => {
-          await plugin.createRoutineNoteFromPrompt();
-          await renderList();
-        })();
-      })
-    );
+    new Setting(containerEl)
+      .addButton((btn) =>
+        btn.setButtonText("Add routine").setCta().onClick(() => {
+          void (async () => {
+            await plugin.createRoutineNoteFromPrompt();
+            await renderList();
+          })();
+        })
+      )
+      .addButton((btn) =>
+        btn.setButtonText("Add circuit routine").onClick(() => {
+          void (async () => {
+            await plugin.createRoutineNoteFromPrompt(true);
+            await renderList();
+          })();
+        })
+      );
   }
 }

@@ -17,7 +17,6 @@ export class WorkoutSessionView extends ItemView {
   private timerDisplays: Map<number, HTMLElement> = new Map();
   private feedback = new FeedbackPlayer();
   private visibilityHandler: (() => void) | null = null;
-  private dragState: { sourceIndex: number; cards: HTMLElement[]; ghostEl: HTMLElement | null; targetIndex: number } | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: WorkoutTrackerPlugin) {
     super(leaf);
@@ -135,7 +134,12 @@ export class WorkoutSessionView extends ItemView {
           title: "View / edit exercise note",
         });
         nameBtn.onclick = () => {
-          new ExerciseNoteModal(this.app, exercise.exerciseFilePath, exercise.exerciseName).open();
+          new ExerciseNoteModal(
+            this.app,
+            this.plugin,
+            exercise.exerciseFilePath,
+            exercise.exerciseName
+          ).open();
         };
       } else {
         const exerciseNameEl = cardHeader.createDiv({
@@ -790,6 +794,12 @@ export class WorkoutSessionView extends ItemView {
     distanceInput.onchange = update;
   }
 
+  /**
+   * Pointer-driven reordering. The card geometry is snapshotted once when the
+   * drag starts and kept in content coordinates, so the shifts applied to the
+   * other cards can never feed back into the target calculation (which is what
+   * made the list jitter underneath the pointer).
+   */
   private attachDragHandle(
     handle: HTMLElement,
     sourceIndex: number,
@@ -799,9 +809,13 @@ export class WorkoutSessionView extends ItemView {
     let pendingDrag = false;
     let dragActive = false;
     let startY = 0;
+    let pointerId: number | null = null;
     let ghostEl: HTMLElement | null = null;
+    let ghostOffsetY = 0;
     let currentTarget = sourceIndex;
-    let capturedStep = 0;
+    let step = 0;
+    /** Card centres in content space (viewport top + scrollTop), captured once. */
+    let centers: number[] = [];
     let autoScrollRaf: number | null = null;
     let lastPointerY = 0;
 
@@ -809,6 +823,9 @@ export class WorkoutSessionView extends ItemView {
     const SCROLL_ZONE = 80;
     const SCROLL_SPEED = 12;
     const scrollEl = this.contentEl;
+
+    const toContentY = (pointerY: number): number =>
+      pointerY - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop;
 
     const stopAutoScroll = () => {
       if (autoScrollRaf !== null) {
@@ -823,27 +840,28 @@ export class WorkoutSessionView extends ItemView {
       const distBottom = rect.bottom - lastPointerY;
       if (distTop < SCROLL_ZONE) {
         scrollEl.scrollTop -= SCROLL_SPEED * (1 - distTop / SCROLL_ZONE);
-        autoScrollRaf = window.requestAnimationFrame(tickAutoScroll);
       } else if (distBottom < SCROLL_ZONE) {
         scrollEl.scrollTop += SCROLL_SPEED * (1 - distBottom / SCROLL_ZONE);
-        autoScrollRaf = window.requestAnimationFrame(tickAutoScroll);
       } else {
         autoScrollRaf = null;
+        return;
       }
+      updateTarget();
+      autoScrollRaf = window.requestAnimationFrame(tickAutoScroll);
     };
 
+    /**
+     * The drop index is the number of other cards whose centre sits above the
+     * pointer — monotonic in the pointer position, so it cannot oscillate.
+     */
     const getTargetIndex = (pointerY: number): number => {
-      const n = cardEls.length;
-      let best = currentTarget;
-      let bestDist = Infinity;
-      cardEls.forEach((card, i) => {
-        if (i === sourceIndex) return;
-        const rect = card.getBoundingClientRect();
-        const center = rect.top + rect.height / 2;
-        const dist = Math.abs(pointerY - center);
-        if (dist < bestDist) { bestDist = dist; best = i; }
-      });
-      return Math.max(0, Math.min(n - 1, best));
+      const contentY = toContentY(pointerY);
+      let insertion = 0;
+      for (let i = 0; i < centers.length; i++) {
+        if (i === sourceIndex) continue;
+        if (centers[i] < contentY) insertion++;
+      }
+      return Math.max(0, Math.min(cardEls.length - 1, insertion));
     };
 
     const applyShifts = (target: number) => {
@@ -851,19 +869,37 @@ export class WorkoutSessionView extends ItemView {
         if (i === sourceIndex) return;
         let shift = 0;
         if (target > sourceIndex && i > sourceIndex && i <= target) {
-          shift = -capturedStep;
+          shift = -step;
         } else if (target < sourceIndex && i >= target && i < sourceIndex) {
-          shift = capturedStep;
+          shift = step;
         }
-        card.style.transform = shift ? `translateY(${shift}px)` : "";
+        card.setCssStyles({ transform: shift ? `translateY(${shift}px)` : "" });
       });
+    };
+
+    const updateTarget = () => {
+      const next = getTargetIndex(lastPointerY);
+      if (next !== currentTarget) {
+        currentTarget = next;
+        applyShifts(currentTarget);
+      }
     };
 
     const cleanup = () => {
       stopAutoScroll();
       activeDocument.removeEventListener("pointermove", onPointerMove);
       activeDocument.removeEventListener("pointerup", onPointerUp);
-      if (ghostEl) { ghostEl.remove(); ghostEl = null; }
+      activeDocument.removeEventListener("pointercancel", onPointerUp);
+      if (pointerId !== null) {
+        if (handle.hasPointerCapture(pointerId)) {
+          handle.releasePointerCapture(pointerId);
+        }
+        pointerId = null;
+      }
+      if (ghostEl) {
+        ghostEl.remove();
+        ghostEl = null;
+      }
       cardEls.forEach((card) => {
         card.setCssStyles({ transform: "" });
         card.removeClass("workout-session-card-drag-transition");
@@ -874,41 +910,74 @@ export class WorkoutSessionView extends ItemView {
       dragActive = false;
     };
 
-    const activateDrag = (pointerY: number) => {
-      const n = cardEls.length;
-      this.contentEl.addClass("workout-session-drag-active");
+    const buildGhost = (sourceCard: HTMLElement, pointerY: number) => {
+      const sourceRect = sourceCard.getBoundingClientRect();
+      const header = sourceCard.querySelector<HTMLElement>(
+        ".workout-session-card-header"
+      );
 
-      // Capture collapsed step from live positions after collapse CSS applies
-      if (n >= 2) {
-        const r0 = cardEls[0].getBoundingClientRect();
-        const r1 = cardEls[1].getBoundingClientRect();
-        capturedStep = r1.top - r0.top;
+      const ghost = activeDocument.body.createDiv({
+        cls: "workout-session-card workout-session-card-ghost",
+      });
+      // Reproduce the collapsed card so the pointer carries the exercise, not
+      // an empty panel: same box, same header content, controls stripped out.
+      if (header) {
+        const headerClone = header.cloneNode(true) as HTMLElement;
+        headerClone
+          .querySelectorAll(".workout-session-exercise-controls")
+          .forEach((el) => el.remove());
+        ghost.appendChild(headerClone);
+      } else {
+        ghost.createDiv({
+          cls: "workout-session-exercise-name",
+          text: session.exercises[sourceIndex]?.exerciseName ?? "",
+        });
       }
 
-      const sourceCard = cardEls[sourceIndex];
-      const sourceRect = sourceCard.getBoundingClientRect();
-      const headerEl = sourceCard.querySelector<HTMLElement>(".workout-session-card-header");
+      // Keep the grab point under the pointer instead of snapping the card's
+      // top-left corner to it.
+      ghostOffsetY = Math.min(
+        Math.max(pointerY - sourceRect.top, 0),
+        sourceRect.height
+      );
+      ghost.setCssStyles({
+        width: `${sourceRect.width}px`,
+        left: `${sourceRect.left}px`,
+        top: `${pointerY - ghostOffsetY}px`,
+      });
+      ghostEl = ghost;
+    };
 
-      ghostEl = activeDocument.createElement("div");
-      ghostEl.className = "workout-session-card workout-session-card-ghost";
-      ghostEl.style.width = `${sourceRect.width}px`;
-      ghostEl.style.top = `${pointerY}px`;
-      ghostEl.style.left = `${sourceRect.left}px`;
-      if (headerEl) ghostEl.appendChild(headerEl.cloneNode(true));
-      activeDocument.body.appendChild(ghostEl);
+    const activateDrag = (pointerY: number) => {
+      this.contentEl.addClass("workout-session-drag-active");
+
+      // Measure after the collapse class applies: every card is now its header.
+      const rects = cardEls.map((card) => card.getBoundingClientRect());
+      const scrollTop = scrollEl.scrollTop;
+      const scrollElTop = scrollEl.getBoundingClientRect().top;
+      centers = rects.map(
+        (rect) => rect.top + rect.height / 2 - scrollElTop + scrollTop
+      );
+      step =
+        rects.length >= 2
+          ? rects[1].top - rects[0].top
+          : rects[0].height;
+
+      buildGhost(cardEls[sourceIndex], pointerY);
 
       cardEls.forEach((card, i) => {
         card.addClass("workout-session-card-drag-transition");
         if (i === sourceIndex) card.addClass("workout-session-card-dragging");
       });
 
-      currentTarget = getTargetIndex(pointerY);
-      applyShifts(currentTarget);
       dragActive = true;
       pendingDrag = false;
+      currentTarget = getTargetIndex(pointerY);
+      applyShifts(currentTarget);
     };
 
     const onPointerMove = (e: PointerEvent) => {
+      if (pointerId !== null && e.pointerId !== pointerId) return;
       if (!pendingDrag && !dragActive) return;
       e.preventDefault();
       lastPointerY = e.clientY;
@@ -919,22 +988,25 @@ export class WorkoutSessionView extends ItemView {
 
       if (!dragActive || !ghostEl) return;
 
-      ghostEl.style.top = `${e.clientY}px`;
+      ghostEl.setCssStyles({ top: `${e.clientY - ghostOffsetY}px` });
 
-      stopAutoScroll();
       const rect = scrollEl.getBoundingClientRect();
-      if (lastPointerY < rect.top + SCROLL_ZONE || lastPointerY > rect.bottom - SCROLL_ZONE) {
-        autoScrollRaf = window.requestAnimationFrame(tickAutoScroll);
+      const inScrollZone =
+        lastPointerY < rect.top + SCROLL_ZONE ||
+        lastPointerY > rect.bottom - SCROLL_ZONE;
+      if (inScrollZone) {
+        if (autoScrollRaf === null) {
+          autoScrollRaf = window.requestAnimationFrame(tickAutoScroll);
+        }
+      } else {
+        stopAutoScroll();
       }
 
-      const newTarget = getTargetIndex(e.clientY);
-      if (newTarget !== currentTarget) {
-        currentTarget = newTarget;
-        applyShifts(currentTarget);
-      }
+      updateTarget();
     };
 
-    const onPointerUp = () => {
+    const onPointerUp = (e: PointerEvent) => {
+      if (pointerId !== null && e.pointerId !== pointerId) return;
       const wasActive = dragActive;
       const finalTarget = currentTarget;
       cleanup();
@@ -947,16 +1019,25 @@ export class WorkoutSessionView extends ItemView {
     };
 
     handle.addEventListener("pointerdown", (e: PointerEvent) => {
-      const n = cardEls.length; // evaluated at fire time so card 0 gets correct count
-      if (n < 2) return;
+      if (cardEls.length < 2) return;
       e.preventDefault();
+      e.stopPropagation();
       pendingDrag = true;
       dragActive = false;
       currentTarget = sourceIndex;
       startY = e.clientY;
       lastPointerY = e.clientY;
+      pointerId = e.pointerId;
+      // Capture so a touch drag belongs to the handle and never turns into a
+      // scroll of the panel behind it.
+      try {
+        handle.setPointerCapture(e.pointerId);
+      } catch (error) {
+        console.debug("Workout Journal: pointer capture unavailable.", error);
+      }
       activeDocument.addEventListener("pointermove", onPointerMove, { passive: false });
       activeDocument.addEventListener("pointerup", onPointerUp);
+      activeDocument.addEventListener("pointercancel", onPointerUp);
     });
   }
 

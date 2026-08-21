@@ -6,3 +6,4 @@ export { RoutineSettingsPage } from './RoutineSettingsPage';
 export { PlanSettingsPage } from './PlanSettingsPage';
 export { PlanBuilderModal } from './PlanBuilderModal';
 export { NoteContentTemplatesPage } from './NoteContentTemplatesPage';
+export { RoutineBuilderModal } from './RoutineBuilderModal';

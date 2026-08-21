@@ -1,5 +1,6 @@
 import { App, Notice, Setting, TFile } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
+import { RoutineBuilderModal } from "./RoutineBuilderModal";
 
 export class RoutineSettingsPage {
   async render(containerEl: HTMLElement, app: App, plugin: WorkoutTrackerPlugin, onBack: () => void): Promise<void> {
@@ -43,9 +44,17 @@ export class RoutineSettingsPage {
 
         const setting = new Setting(listContainer).setName(routine.name).setDesc(desc);
 
+        setting.addButton((btn) =>
+          btn.setButtonText("Edit details").onClick(() => {
+            new RoutineBuilderModal(app, plugin, () => { void renderList(); }, {
+              existing: routine,
+            }).open();
+          })
+        );
+
         if (routine.filePath) {
           setting.addButton((btn) =>
-            btn.setButtonText("Edit as routine").onClick(() => {
+            btn.setButtonText("Edit sets").onClick(() => {
               const file = app.vault.getAbstractFileByPath(routine.filePath!);
               if (file instanceof TFile) void plugin.openRoutineEditor(file);
             })
@@ -84,18 +93,16 @@ export class RoutineSettingsPage {
     new Setting(containerEl)
       .addButton((btn) =>
         btn.setButtonText("Add routine").setCta().onClick(() => {
-          void (async () => {
-            await plugin.createRoutineNoteFromPrompt();
-            await renderList();
-          })();
+          void plugin.createRoutineNoteFromPrompt(false, () => {
+            void renderList();
+          });
         })
       )
       .addButton((btn) =>
         btn.setButtonText("Add circuit routine").onClick(() => {
-          void (async () => {
-            await plugin.createRoutineNoteFromPrompt(true);
-            await renderList();
-          })();
+          void plugin.createRoutineNoteFromPrompt(true, () => {
+            void renderList();
+          });
         })
       );
   }

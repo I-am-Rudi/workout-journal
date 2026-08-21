@@ -10,6 +10,8 @@ export const CIRCUIT_SESSION_VIEW_TYPE = "workout-tracker-circuit-view";
 const TICK_INTERVAL_MS = 200;
 /** Beyond this overshoot a step boundary is treated as a suspended timer. */
 const BACKGROUND_GAP_MS = 3000;
+/** How far into an interval the back arrow restarts it instead of stepping back. */
+const RESTART_WINDOW_SECONDS = 3;
 
 /**
  * Guided player for circuit routines: it walks through the exercises, counting
@@ -42,6 +44,8 @@ export class CircuitSessionView extends ItemView {
   private upNextEl: HTMLElement | null = null;
   private progressEl: HTMLElement | null = null;
   private playPauseBtn: HTMLButtonElement | null = null;
+  private prevBtn: HTMLButtonElement | null = null;
+  private nextBtn: HTMLButtonElement | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: WorkoutTrackerPlugin) {
     super(leaf);
@@ -171,12 +175,28 @@ export class CircuitSessionView extends ItemView {
     this.countdownEl = stage.createDiv({ cls: "workout-circuit-countdown" });
     this.upNextEl = stage.createDiv({ cls: "workout-circuit-upnext" });
 
-    const controls = contentEl.createDiv({ cls: "workout-circuit-controls" });
-    this.playPauseBtn = controls.createEl("button", {
+    const transport = contentEl.createDiv({ cls: "workout-circuit-transport" });
+    this.prevBtn = transport.createEl("button", {
+      text: "◀",
+      cls: "workout-circuit-btn workout-circuit-btn-step",
+      attr: { "aria-label": "Previous interval", title: "Previous interval" },
+    });
+    this.prevBtn.onclick = () => this.goToPreviousStep();
+
+    this.playPauseBtn = transport.createEl("button", {
       text: "Pause",
       cls: "workout-circuit-btn workout-circuit-btn-primary",
     });
     this.playPauseBtn.onclick = () => this.togglePlayPause();
+
+    this.nextBtn = transport.createEl("button", {
+      text: "▶",
+      cls: "workout-circuit-btn workout-circuit-btn-step",
+      attr: { "aria-label": "Skip interval", title: "Skip interval" },
+    });
+    this.nextBtn.onclick = () => this.goToNextStep();
+
+    const controls = contentEl.createDiv({ cls: "workout-circuit-controls" });
 
     const finishBtn = controls.createEl("button", {
       text: "Finish",
@@ -234,7 +254,9 @@ export class CircuitSessionView extends ItemView {
     this.pausedRemainingMs = step.seconds * 1000;
     this.renderProgress();
     this.updateDisplay();
-    if (this.playPauseBtn) this.playPauseBtn.textContent = "Start";
+    if (this.playPauseBtn) {
+      this.playPauseBtn.textContent = this.performedWork.size ? "Resume" : "Start";
+    }
     this.ensureVisibilityHandler();
   }
 
@@ -313,6 +335,54 @@ export class CircuitSessionView extends ItemView {
     this.startStep(nextIndex);
   }
 
+  /**
+   * Manual navigation. Skipping forward credits the work done so far so the log
+   * still reflects reality; stepping back drops the interval being left behind
+   * and re-runs it from the top.
+   */
+  private goToNextStep(): void {
+    if (this.finished || !this.steps.length) return;
+    const wasRunning = this.isRunning;
+    const step = this.steps[this.stepIndex];
+    if (step?.kind === "work") {
+      this.completeCurrentStep(Math.max(0, step.seconds - this.remainingSeconds()));
+    }
+    if (this.stepIndex + 1 >= this.steps.length) {
+      this.finish();
+      return;
+    }
+    this.moveToStep(this.stepIndex + 1, wasRunning);
+  }
+
+  private goToPreviousStep(): void {
+    if (this.finished || !this.steps.length) return;
+    const wasRunning = this.isRunning;
+    const step = this.steps[this.stepIndex];
+    if (step?.kind === "work") {
+      this.performedWork.delete(`${step.exerciseIndex}:${step.round}`);
+    }
+    // Past the first few seconds, "back" restarts the current interval — the
+    // same behaviour as a music player's previous-track button.
+    const restartCurrent =
+      this.stepIndex === 0 ||
+      (step !== undefined && step.seconds - this.remainingSeconds() > RESTART_WINDOW_SECONDS);
+    const target = restartCurrent ? this.stepIndex : this.stepIndex - 1;
+    const previous = this.steps[target];
+    if (previous?.kind === "work") {
+      this.performedWork.delete(`${previous.exerciseIndex}:${previous.round}`);
+    }
+    this.moveToStep(target, wasRunning);
+  }
+
+  private moveToStep(index: number, running: boolean): void {
+    if (running) {
+      this.startStep(index);
+    } else {
+      this.stopTicking();
+      this.armStep(index);
+    }
+  }
+
   private togglePlayPause(): void {
     if (this.isRunning) {
       this.pause();
@@ -367,6 +437,12 @@ export class CircuitSessionView extends ItemView {
     if (this.countdownEl) {
       this.countdownEl.setText(formatSeconds(this.remainingSeconds()));
       this.countdownEl.toggleClass("workout-circuit-countdown-paused", !this.isRunning);
+    }
+    if (this.prevBtn) {
+      this.prevBtn.disabled = this.finished;
+    }
+    if (this.nextBtn) {
+      this.nextBtn.disabled = this.finished;
     }
     if (this.upNextEl) {
       const next = this.steps[this.stepIndex + 1];

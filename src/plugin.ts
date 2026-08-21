@@ -43,11 +43,15 @@ import {
   StrongImportModal,
   WorkoutEditModal,
   WorkoutModal,
+  WorkoutHomeModal,
   WorkoutStatsModal,
-  WorkoutTypeSelectionModal,
 } from "./modals";
 import { CircuitFinishResult } from "./modals/CircuitSummaryModal";
-import { PlanBuilderModal, WorkoutTrackerSettingTab } from "./settings";
+import {
+  PlanBuilderModal,
+  RoutineBuilderModal,
+  WorkoutTrackerSettingTab,
+} from "./settings";
 import {
   WORKOUT_SESSION_VIEW_TYPE,
   WorkoutSessionView,
@@ -113,7 +117,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
     this.registerEvent(this.fileModifyEventRef);
 
     const openWorkoutTypeModal = () => {
-      new WorkoutTypeSelectionModal(this.app, this).open();
+      new WorkoutHomeModal(this.app, this).open();
     };
     let ribbonIcon: ReturnType<typeof this.addRibbonIcon> | null = null;
     try {
@@ -1139,35 +1143,15 @@ export default class WorkoutTrackerPlugin extends Plugin {
     }
   }
 
-  async createExerciseNoteFromPrompt(): Promise<void> {
-    const name = await this.prompt("Exercise name");
-    if (!name) return;
-    const definition: ExerciseDefinition = {
-      id: this.createIdFromName(name),
-      name,
-      type: "strength",
-      muscleGroups: [],
-      defaultSets: 3,
-      defaultReps: 8,
-    };
-    await this.definitionService.createExerciseDefinition(definition);
-    new Notice(`Exercise note created: ${name}`);
+  async createExerciseNoteFromPrompt(onSave: () => void = () => {}): Promise<void> {
+    new ExerciseDefinitionModal(this.app, this, onSave).open();
   }
 
-  async createRoutineNoteFromPrompt(isCircle = false): Promise<void> {
-    const name = await this.prompt(isCircle ? "Circuit routine name" : "Routine name");
-    if (!name) return;
-    const routine: RoutineDefinition = {
-      id: this.createIdFromName(name),
-      name,
-      exercises: [],
-      estimatedDuration: isCircle ? undefined : 60,
-      isCircle: isCircle || undefined,
-    };
-    await this.definitionService.createRoutineDefinition(routine);
-    new Notice(
-      isCircle ? `Circuit routine note created: ${name}` : `Routine note created: ${name}`
-    );
+  async createRoutineNoteFromPrompt(
+    isCircle = false,
+    onSave: () => void = () => {}
+  ): Promise<void> {
+    new RoutineBuilderModal(this.app, this, onSave, { isCircle }).open();
   }
 
   private async storeLastPerformedValues(session: WorkoutSession): Promise<void> {
@@ -1232,16 +1216,9 @@ export default class WorkoutTrackerPlugin extends Plugin {
     new Notice(`Routine created: ${name}`);
   }
 
-  private async createPlanNoteFromPrompt(): Promise<void> {
-    const name = await this.prompt("Workout plan name");
-    if (!name) return;
-    const plan: WorkoutPlanDefinition = {
-      id: this.createIdFromName(name),
-      name,
-      routines: [],
-    };
-    await this.definitionService.createWorkoutPlanDefinition(plan);
-    new Notice(`Workout plan note created: ${name}`);
+  async createPlanNoteFromPrompt(onSave: () => void = () => {}): Promise<void> {
+    const routines = await this.definitionService.loadRoutineDefinitions();
+    new PlanBuilderModal(this.app, this, routines, onSave).open();
   }
 
   private async openExerciseEditor(file: TFile): Promise<void> {

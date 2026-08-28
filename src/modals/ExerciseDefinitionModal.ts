@@ -91,7 +91,7 @@ export class ExerciseDefinitionModal extends Modal {
     }
 
     if (!durationOnly && !repsOnly) {
-      new Setting(contentEl).setName("Default weight").addText((t) =>
+      new Setting(contentEl).setName(`Default weight (${this.plugin.settings.weightUnit})`).addText((t) =>
         t.setPlaceholder("0").setValue(this.defaultWeight !== undefined ? String(this.defaultWeight) : "")
           .onChange((v) => { this.defaultWeight = v ? parseFloat(v) : undefined; })
       );
@@ -112,7 +112,7 @@ export class ExerciseDefinitionModal extends Modal {
     }
 
     if (!durationOnly && !repsOnly) {
-      new Setting(contentEl).setName("Default distance (km)").addText((t) =>
+      new Setting(contentEl).setName(`Default distance (${this.plugin.settings.distanceUnit})`).addText((t) =>
         t.setPlaceholder("–").setValue(this.defaultDistance !== undefined ? String(this.defaultDistance) : "")
           .onChange((v) => { this.defaultDistance = v ? parseFloat(v) : undefined; })
       );

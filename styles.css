@@ -1153,50 +1153,268 @@
 
 /* ── Home page ─────────────────────────────────────────────── */
 
-.workout-home-actions {
-    margin: 8px 0 16px;
+.workout-home-modal {
+    max-width: 560px;
+}
+
+.workout-home-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 14px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.workout-home-titles {
+    min-width: 0;
+}
+
+.workout-home-title {
+    font-size: var(--font-ui-large);
+    font-weight: 600;
+    color: var(--text-normal);
+    line-height: 1.2;
+}
+
+.workout-home-subtitle {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.workout-home-body {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding-top: 18px;
+}
+
+/* Quick start */
+
+.workout-home-quickstart {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.workout-home-resume {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--interactive-accent);
+    background: var(--background-secondary);
+}
+
+.workout-home-resume-info {
+    min-width: 0;
+}
+
+.workout-home-resume-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--interactive-accent);
+}
+
+.workout-home-resume-name {
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.workout-home-resume-meta {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.workout-home-resume-btn {
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.workout-home-resume-btn:hover {
+    background: var(--interactive-accent-hover);
 }
 
 .workout-home-primary-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     width: 100%;
-    padding: 12px 16px;
-    font-size: 15px;
+    padding: 14px 16px;
+    font-size: var(--font-ui-medium);
     font-weight: 600;
-    border-radius: 8px;
+    border-radius: 10px;
     cursor: pointer;
     background: var(--interactive-accent);
     color: var(--text-on-accent);
+    box-shadow: none;
 }
 
 .workout-home-primary-btn:hover {
     background: var(--interactive-accent-hover);
 }
 
+.workout-home-btn-icon {
+    display: flex;
+    align-items: center;
+}
+
+.workout-home-btn-icon .svg-icon {
+    width: 18px;
+    height: 18px;
+}
+
+/* Sections */
+
 .workout-home-section {
-    margin-bottom: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .workout-home-section-header {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 4px 0;
-    margin-bottom: 4px;
-    border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .workout-home-section-title {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-muted);
 }
 
-.workout-home-section-count {
-    font-size: 12px;
-    color: var(--text-faint);
+.workout-home-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-muted);
+}
+
+.workout-home-icon-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.workout-home-icon-btn .svg-icon {
+    width: 16px;
+    height: 16px;
+}
+
+/* Plan folders */
+
+.workout-home-plan {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 10px;
+    background: var(--background-primary);
+    overflow: hidden;
+}
+
+.workout-home-plan.is-expanded {
+    background: var(--background-secondary);
+}
+
+.workout-home-plan-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px 4px 4px;
+}
+
+.workout-home-plan-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    background: transparent;
+    box-shadow: none;
+}
+
+.workout-home-plan-toggle:hover {
+    background: var(--background-modifier-hover);
+}
+
+.workout-home-plan-chevron {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+}
+
+.workout-home-plan-chevron .svg-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.workout-home-plan-titles {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.workout-home-plan-name {
+    font-weight: 600;
+    color: var(--text-normal);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.workout-home-plan-count {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.workout-home-plan-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.workout-home-plan-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 8px 8px 8px;
+}
+
+.workout-home-plan-body.is-hidden {
+    display: none;
+}
+
+/* Routine rows */
+
+.workout-home-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .workout-home-routine {
@@ -1204,8 +1422,9 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 8px 6px;
-    border-radius: 6px;
+    padding: 10px 10px 10px 12px;
+    border-radius: 8px;
+    background: var(--background-primary);
 }
 
 .workout-home-routine:hover {
@@ -1215,6 +1434,14 @@
 .workout-home-routine-info {
     display: flex;
     flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.workout-home-routine-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     min-width: 0;
 }
 
@@ -1227,21 +1454,75 @@
 }
 
 .workout-home-routine-meta {
-    font-size: 12px;
+    font-size: var(--font-ui-smaller);
     color: var(--text-muted);
+}
+
+.workout-home-routine-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+
+.workout-home-chip {
+    flex: 0 0 auto;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--background-modifier-border);
+    color: var(--text-muted);
+}
+
+.workout-home-chip-accent {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
 }
 
 .workout-home-start-btn {
     flex: 0 0 auto;
-    padding: 6px 14px;
-    border-radius: 6px;
+    padding: 6px 16px;
+    border-radius: 8px;
     cursor: pointer;
+    font-weight: 500;
 }
 
 .workout-home-start-btn:disabled {
     opacity: 0.5;
     cursor: default;
 }
+
+/* Empty states */
+
+.workout-home-empty {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+    padding: 4px 2px;
+}
+
+.workout-home-empty-state {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 20px 16px;
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: 10px;
+    text-align: center;
+    align-items: center;
+}
+
+.workout-home-empty-title {
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.workout-home-empty-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+}
+
 
 /* ── Exercise note modal: tabs and history ─────────────────── */
 

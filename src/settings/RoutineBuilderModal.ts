@@ -21,7 +21,7 @@ const DEFAULT_REPS = 8;
  */
 export class RoutineBuilderModal extends Modal {
   private plugin: WorkoutTrackerPlugin;
-  private onSave: () => void;
+  private onSave: (routine?: RoutineDefinition) => void;
   private existing: RoutineDefinition | undefined;
   private availableExercises: ExerciseDefinition[] = [];
 
@@ -34,7 +34,7 @@ export class RoutineBuilderModal extends Modal {
   constructor(
     app: App,
     plugin: WorkoutTrackerPlugin,
-    onSave: () => void,
+    onSave: (routine?: RoutineDefinition) => void,
     options?: { isCircle?: boolean; existing?: RoutineDefinition }
   ) {
     super(app);
@@ -329,10 +329,11 @@ export class RoutineBuilderModal extends Modal {
     if (this.existing?.filePath) {
       await this.plugin.definitionService.updateRoutineDefinition(routine);
     } else {
-      await this.plugin.definitionService.createRoutineDefinition(routine);
+      const file = await this.plugin.definitionService.createRoutineDefinition(routine);
+      if (file) routine.filePath = file.path;
     }
     new Notice(`Routine saved: ${routine.name}`);
-    this.onSave();
+    this.onSave(routine);
     this.close();
   }
 

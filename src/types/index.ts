@@ -25,6 +25,7 @@ export interface WorkoutTrackerSettings {
   autoSyncDelayMs: number;
   dateFormat: string;
   weightUnit: "kg" | "lb";
+  distanceUnit: "km" | "mi";
   defaultRestTimerSeconds: number;
   enableSetCompletionVibrationFeedback: boolean;
   enableSetCompletionSoundFeedback: boolean;
@@ -32,6 +33,8 @@ export interface WorkoutTrackerSettings {
   enableRestTimerSoundFeedback: boolean;
   migration: MigrationState;
   noteTemplates: NoteContentTemplates;
+  /** Plan cards the user has opened on the home page, keyed by plan id. */
+  homeExpandedPlans: Record<string, boolean>;
 }
 
 export interface MigrationState {

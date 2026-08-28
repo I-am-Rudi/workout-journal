@@ -249,7 +249,9 @@ export class WorkoutFileService {
     workout.exercises.forEach((exercise) => {
       content += `### ${exercise.name}\n\n`;
       if (exercise.sets && exercise.sets.length > 0) {
-        content += `| Set | Type | Reps | Weight | Duration | Distance | Rest |\n`;
+        const weightUnit = this.settings?.weightUnit || "kg";
+        const distanceUnit = this.settings?.distanceUnit || "km";
+        content += `| Set | Type | Reps | Weight (${weightUnit}) | Duration | Distance (${distanceUnit}) | Rest |\n`;
         content += `|-----|------|------|--------|----------|----------|------|\n`;
         exercise.sets.forEach((set, index) => {
           const typeLabel = (set.setType && set.setType !== "default")

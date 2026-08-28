@@ -43,6 +43,7 @@ export const DEFAULT_SETTINGS: WorkoutTrackerSettings = {
   autoSyncDelayMs: 2000,
   dateFormat: "YYYY-MM-DD",
   weightUnit: "lb",
+  distanceUnit: "km",
   // Default rest timer in seconds shown after checking off a set (0 = disabled)
   defaultRestTimerSeconds: 90,
   enableSetCompletionVibrationFeedback: true,
@@ -54,6 +55,7 @@ export const DEFAULT_SETTINGS: WorkoutTrackerSettings = {
     exerciseCount: 0,
     routineCount: 0,
   },
+  homeExpandedPlans: {},
   noteTemplates: {
     exercise: { frontmatter: "", body: "" },
     routine: { frontmatter: "", body: "" },

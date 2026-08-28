@@ -193,6 +193,20 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName("Distance unit")
+      .setDesc("Global distance unit used for cardio logging")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("km", "km")
+          .addOption("mi", "mi")
+          .setValue(this.plugin.settings.distanceUnit)
+          .onChange(async (value) => {
+            this.plugin.settings.distanceUnit = value as "km" | "mi";
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
       .setName("Default rest timer")
       .setDesc(
         "Rest timer duration in seconds started automatically when a set is checked off (0 to disable)"

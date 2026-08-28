@@ -378,7 +378,7 @@ export class WorkoutSessionView extends ItemView {
               row.createEl("td", {
                 text:
                   set.duration !== undefined || set.distance !== undefined
-                    ? `${set.duration ?? "-"}min / ${set.distance ?? "-"}km`
+                    ? `${set.duration ?? "-"}min / ${set.distance ?? "-"}${this.distanceUnit()}`
                     : "-",
               });
             }
@@ -631,7 +631,7 @@ export class WorkoutSessionView extends ItemView {
         });
       }
     } else if (isCardio) {
-      const targetText = `${set.duration ?? "0"}min / ${set.distance ?? "0"}km`;
+      const targetText = `${set.duration ?? "0"}min / ${set.distance ?? "0"}${this.distanceUnit()}`;
       header.createEl("span", { text: targetText, cls: "workout-session-set-card-target" });
       this.renderCardioEditor(header, set.duration, set.distance, (duration, distance) => {
         set.duration = duration;
@@ -712,7 +712,7 @@ export class WorkoutSessionView extends ItemView {
     const wrapper = container.createDiv({ cls: "workout-session-set-editor" });
     const weightInput = wrapper.createEl("input", {
       type: "number",
-      placeholder: "Weight",
+      placeholder: this.plugin.settings.weightUnit || "kg",
     });
     weightInput.value = weight !== undefined ? String(weight) : "";
 
@@ -771,6 +771,11 @@ export class WorkoutSessionView extends ItemView {
     durationInput.onchange = update;
   }
 
+  /** The configured distance unit label, used for cardio inputs and summaries. */
+  private distanceUnit(): string {
+    return this.plugin.settings.distanceUnit || "km";
+  }
+
   private renderCardioEditor(
     container: HTMLElement,
     duration: number | undefined,
@@ -780,7 +785,10 @@ export class WorkoutSessionView extends ItemView {
     const wrapper = container.createDiv({ cls: "workout-session-set-editor workout-session-cardio-editor" });
     const durationInput = wrapper.createEl("input", { type: "number", placeholder: "min" });
     durationInput.value = duration !== undefined ? String(duration) : "";
-    const distanceInput = wrapper.createEl("input", { type: "number", placeholder: "km" });
+    const distanceInput = wrapper.createEl("input", {
+      type: "number",
+      placeholder: this.distanceUnit(),
+    });
     distanceInput.value = distance !== undefined ? String(distance) : "";
 
     const update = () => {

@@ -221,7 +221,9 @@ export class ExerciseNoteModal extends Modal {
       parts.push(`${set.weight} ${this.plugin.settings.weightUnit}`);
     }
     if (set.duration !== undefined) parts.push(`${set.duration}${this.durationUnit}`);
-    if (set.distance !== undefined) parts.push(`${set.distance} km`);
+    if (set.distance !== undefined) {
+      parts.push(`${set.distance} ${this.plugin.settings.distanceUnit}`);
+    }
     return parts.length ? parts.join(" · ") : "—";
   }
 

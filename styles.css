@@ -447,14 +447,14 @@
 }
 
 /* Floating ghost card that follows the pointer */
-.workout-session-card-ghost {
+.workout-session-card.workout-session-card-ghost {
     position: fixed;
     z-index: 9999;
     pointer-events: none;
     margin: 0;
     opacity: 0.92;
     box-shadow: 0 8px 28px rgba(0,0,0,0.28);
-    border: 1px solid var(--interactive-accent) !important;
+    border: 1px solid var(--interactive-accent);
 }
 
 .workout-session-replace-exercise {
@@ -1624,4 +1624,83 @@
 
 .workout-routine-count-input {
     width: 70px;
+}
+
+/* ── Exercise catalog ─────────────────────────────────────────────────── */
+
+.wj-catalog-suggestion-name {
+  font-weight: var(--font-medium);
+}
+
+.wj-catalog-suggestion-meta {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.wj-catalog-browse-list {
+  max-height: 40vh;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  margin-bottom: var(--size-4-3);
+}
+
+.wj-catalog-browse-row {
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.wj-catalog-browse-row:last-child {
+  border-bottom: none;
+}
+
+.wj-catalog-browse-label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2) var(--size-4-3);
+  cursor: pointer;
+}
+
+.wj-catalog-browse-check {
+  margin-top: 2px;
+}
+
+.wj-catalog-browse-text {
+  min-width: 0;
+}
+
+.wj-catalog-browse-name {
+  color: var(--text-normal);
+}
+
+.wj-catalog-browse-meta {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+/* Catalog results in the session picker sit below the user's own exercises. */
+
+.workout-add-exercise-group-label {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: var(--size-4-3) 0 var(--size-4-1);
+}
+
+.workout-add-exercise-item-catalog .workout-add-exercise-name {
+  color: var(--text-muted);
+}
+
+/* ── Exercise note description tab ────────────────────────────────────── */
+
+.exercise-note-modal-description {
+  max-height: 55vh;
+  overflow-y: auto;
+  padding-right: var(--size-4-2);
+}
+
+.exercise-note-modal-description img {
+  max-width: 100%;
+  border-radius: var(--radius-s);
 }

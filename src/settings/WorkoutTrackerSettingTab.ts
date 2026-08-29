@@ -5,6 +5,13 @@ import { RoutineSettingsPage } from "./RoutineSettingsPage";
 import { PlanSettingsPage } from "./PlanSettingsPage";
 import { NoteContentTemplatesPage } from "./NoteContentTemplatesPage";
 import { StrongImportModal } from "../modals/StrongImportModal";
+import { CatalogBrowseModal } from "../modals/CatalogBrowseModal";
+import {
+  EXERCISE_IMAGE_MODE_DESCRIPTIONS,
+  EXERCISE_IMAGE_MODE_LABELS,
+  EXPOSED_IMAGE_MODES,
+  ExerciseImageMode,
+} from "../utils/exerciseMediaService";
 
 type SettingsPage = "main" | "exercises" | "routines" | "plans" | "templates";
 
@@ -292,6 +299,61 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
           .setButtonText("Import from strong app")
           .onClick(() => new StrongImportModal(this.app, this.plugin).open())
       );
+
+    new Setting(containerEl).setName("Exercise catalog").setHeading();
+
+    new Setting(containerEl)
+      .setName("Browse the catalog")
+      .setDesc(
+        `Pick from ${this.plugin.catalogService.size} exercises with descriptions. Only the ones you choose become notes.`
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Browse catalog")
+          .onClick(() =>
+            new CatalogBrowseModal(this.app, this.plugin, () => undefined).open()
+          )
+      );
+
+    new Setting(containerEl)
+      .setName("Exercise images")
+      .setDesc(
+        "Pictures come from the exercise dataset and are © Gym visual. Linking to them keeps the licence with the rights holder rather than copying the files into your vault."
+      )
+      .addDropdown((drop) => {
+        for (const mode of EXPOSED_IMAGE_MODES) {
+          drop.addOption(mode, EXERCISE_IMAGE_MODE_LABELS[mode]);
+        }
+        // A mode set by hand in data.json is honoured even when it is not listed.
+        const current = this.plugin.settings.exerciseImageMode;
+        if (!EXPOSED_IMAGE_MODES.includes(current)) {
+          drop.addOption(current, EXERCISE_IMAGE_MODE_LABELS[current]);
+        }
+        drop.setValue(current).onChange(async (value) => {
+          this.plugin.settings.exerciseImageMode = value as ExerciseImageMode;
+          await this.plugin.saveSettings();
+          this.display();
+        });
+      });
+
+    containerEl.createEl("p", {
+      text: EXERCISE_IMAGE_MODE_DESCRIPTIONS[this.plugin.settings.exerciseImageMode],
+      cls: "setting-item-description",
+    });
+
+    if (this.plugin.settings.exerciseImageMode !== "none") {
+      new Setting(containerEl)
+        .setName("Use the animated version")
+        .setDesc("Show the exercise animation instead of the still picture.")
+        .addToggle((toggle) =>
+          toggle
+            .setValue(this.plugin.settings.exerciseImageAnimated)
+            .onChange(async (value) => {
+              this.plugin.settings.exerciseImageAnimated = value;
+              await this.plugin.saveSettings();
+            })
+        );
+    }
 
     new Setting(containerEl).setName("Library").setHeading();
 

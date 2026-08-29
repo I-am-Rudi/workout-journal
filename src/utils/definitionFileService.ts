@@ -17,6 +17,12 @@ import {
 } from "../types";
 import { parseTemplateFrontmatter, appendTemplateBody } from "./noteTemplateUtils";
 import { EXERCISE_TYPES } from "./exerciseTypeUtils";
+import {
+  parseExerciseNote,
+  renderExerciseBody,
+  writeDescriptionSection,
+} from "./exerciseNoteSections";
+import { isImageMode } from "./exerciseMediaService";
 
 export class DefinitionFileService {
   app: App;
@@ -37,21 +43,78 @@ export class DefinitionFileService {
     await this.ensureFolder(this.settings.workoutPlansFolder);
   }
 
+  /**
+   * Creates a new exercise note, or updates an existing one **without touching
+   * its body**.
+   *
+   * Exercise notes hold a description and the user's own notes below the
+   * frontmatter, so an edit must never re-render the whole file. Frontmatter
+   * goes through `processFrontMatter`; the body is only written when the note is
+   * being created, or when a description is explicitly supplied.
+   */
   async createExerciseDefinition(def: ExerciseDefinition): Promise<TFile | null> {
     await this.ensureFolders();
-    const fileName = this.createSafeFileName(def.name, "exercise-note");
     const folder = this.requireConfiguredFolder(
       this.settings.exerciseLibraryFolder,
       "Exercise library folder"
     );
-    const path = `${folder}/${fileName}.md`;
-    const existing = this.app.vault.getAbstractFileByPath(path);
-    const content = this.renderExerciseDefinition(def);
-    if (existing instanceof TFile) {
-      await this.app.vault.modify(existing, content);
+
+    const existing = this.findExistingExerciseFile(def, folder);
+    if (existing) {
+      await this.app.fileManager.processFrontMatter(existing, (frontmatter: Record<string, unknown>) => {
+        this.applyExerciseFrontmatter(frontmatter, def);
+      });
+      if (def.description !== undefined) {
+        await this.app.vault.process(existing, (content) =>
+          writeDescriptionSection(content, def.description ?? "")
+        );
+      }
       return existing;
     }
-    return this.app.vault.create(path, content);
+
+    const path = this.findFreeExercisePath(def.name, folder);
+    return this.app.vault.create(path, this.renderExerciseDefinition(def));
+  }
+
+  /**
+   * Resolves an exercise to the note that already represents it: its recorded
+   * path first, then a note at the name-derived path carrying the same id.
+   *
+   * A note sitting at that path with a *different* id belongs to someone else's
+   * exercise — "3/4 sit-up" and "3-4 sit up" both sanitise to `34-sit-up` — so
+   * it is left alone and the caller writes to a suffixed path instead.
+   */
+  private findExistingExerciseFile(
+    def: ExerciseDefinition,
+    folder: string
+  ): TFile | null {
+    if (def.filePath) {
+      const byPath = this.app.vault.getFileByPath(normalizePath(def.filePath));
+      if (byPath) return byPath;
+    }
+
+    const fileName = this.createSafeFileName(def.name, "exercise-note");
+    const candidate = this.app.vault.getFileByPath(
+      normalizePath(`${folder}/${fileName}.md`)
+    );
+    if (!candidate) return null;
+
+    const cache = this.app.metadataCache.getFileCache(candidate);
+    const frontmatter = cache?.frontmatter;
+    if (!frontmatter || frontmatter["wj-type"] !== "exercise") return null;
+    return frontmatter["wj-id"] === def.id ? candidate : null;
+  }
+
+  /** First unused `name.md`, `name-2.md`, … in the exercise folder. */
+  private findFreeExercisePath(name: string, folder: string): string {
+    const base = this.createSafeFileName(name, "exercise-note");
+    for (let suffix = 1; suffix < 100; suffix++) {
+      const candidate = normalizePath(
+        `${folder}/${base}${suffix === 1 ? "" : `-${suffix}`}.md`
+      );
+      if (!this.app.vault.getAbstractFileByPath(candidate)) return candidate;
+    }
+    return normalizePath(`${folder}/${base}-${generateId()}.md`);
   }
 
   async createRoutineDefinition(def: RoutineDefinition): Promise<TFile | null> {
@@ -129,19 +192,39 @@ export class DefinitionFileService {
 
   async loadExerciseFromFile(file: TFile): Promise<ExerciseDefinition | null> {
     try {
-      const frontmatter = await this.readFrontmatter(file);
+      const content = await this.app.vault.read(file);
+      const frontmatter = this.parseFrontmatter(content);
       if (!frontmatter || frontmatter['wj-type'] !== "exercise") {
         return null;
       }
       const id = this.asString(frontmatter['wj-id']) || file.basename;
       const name = this.asString(frontmatter['wj-name']) || file.basename;
       const type = this.asExerciseType(frontmatter['wj-exercise-type']) || "strength";
+
+      // The body is the source of truth for both prose sections. `wj-notes` is
+      // still read as a fallback so notes written before the ## Notes layout
+      // existed keep showing up, and still written so Dataview queries against
+      // it keep working.
+      const sections = parseExerciseNote(content);
+      const notes = sections.hasNotes
+        ? sections.notes || undefined
+        : sections.notes || this.asString(frontmatter['wj-notes']);
+
       return {
         id,
         name,
         type,
         muscleGroups: this.asStringArray(frontmatter['wj-muscle-groups']),
-        notes: this.asString(frontmatter['wj-notes']),
+        notes,
+        description: sections.description || undefined,
+        equipment: this.asString(frontmatter['wj-equipment']),
+        sourceId: this.asString(frontmatter['wj-source-id']),
+        source: this.asString(frontmatter['wj-source']),
+        catalogName: this.asString(frontmatter['wj-catalog-name']),
+        mediaId: this.asString(frontmatter['wj-media-id']),
+        mediaMode: isImageMode(frontmatter['wj-media-mode'])
+          ? frontmatter['wj-media-mode']
+          : undefined,
         defaultSets: this.asNumber(frontmatter['wj-default-sets']),
         defaultReps: this.asNumber(frontmatter['wj-default-reps']),
         defaultWeight: this.asNumber(frontmatter['wj-default-weight']),
@@ -341,6 +424,10 @@ export class DefinitionFileService {
 
   private async readFrontmatter(file: TFile): Promise<Record<string, unknown> | null> {
     const content = await this.app.vault.read(file);
+    return this.parseFrontmatter(content);
+  }
+
+  private parseFrontmatter(content: string): Record<string, unknown> | null {
     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
     if (!frontmatterMatch) {
       return null;
@@ -348,8 +435,12 @@ export class DefinitionFileService {
     return parseYaml(frontmatterMatch[1]) as Record<string, unknown> | null;
   }
 
-  private renderExerciseDefinition(def: ExerciseDefinition): string {
-    const baseFrontmatter = {
+  /** The `wj-*` keys for an exercise, applied in place by processFrontMatter. */
+  private applyExerciseFrontmatter(
+    frontmatter: Record<string, unknown>,
+    def: ExerciseDefinition
+  ): void {
+    const values: Record<string, unknown> = {
       'wj-type': "exercise",
       'wj-id': def.id,
       'wj-name': def.name,
@@ -363,13 +454,33 @@ export class DefinitionFileService {
       'wj-default-duration': def.defaultDuration,
       'wj-default-distance': def.defaultDistance,
       'wj-notes': def.notes,
+      'wj-equipment': def.equipment,
+      'wj-source': def.source,
+      'wj-source-id': def.sourceId,
+      'wj-catalog-name': def.catalogName,
+      'wj-media-id': def.mediaId,
+      'wj-media-mode': def.mediaMode,
     };
+
+    for (const [key, value] of Object.entries(values)) {
+      if (value === undefined) {
+        delete frontmatter[key];
+      } else {
+        frontmatter[key] = value;
+      }
+    }
+  }
+
+  private renderExerciseDefinition(def: ExerciseDefinition): string {
+    const baseFrontmatter: Record<string, unknown> = {};
+    this.applyExerciseFrontmatter(baseFrontmatter, def);
     const templateFm = parseTemplateFrontmatter(
       this.settings.noteTemplates?.exercise?.frontmatter
     );
     const frontmatter = { ...templateFm, ...baseFrontmatter };
     const body =
-      `---\n${stringifyYaml(frontmatter)}---\n\n# ${def.name}\n\n${def.notes || ""}\n`;
+      `---\n${stringifyYaml(frontmatter)}---\n\n# ${def.name}\n` +
+      renderExerciseBody(def.description ?? "", def.notes ?? "");
     return appendTemplateBody(body, this.settings.noteTemplates?.exercise?.body);
   }
 

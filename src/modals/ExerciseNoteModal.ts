@@ -1,34 +1,12 @@
-import { App, Modal, Notice, TFile } from "obsidian";
+import { App, Component, MarkdownRenderer, Modal, Notice, TFile } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
 import { ExerciseSet, Workout } from "../types";
+import { parseExerciseNote, writeNotesSection } from "../utils/exerciseNoteSections";
 
 /** How many past workouts the history tab lists. */
 const HISTORY_LIMIT = 12;
 
-/**
- * Splits a note's raw content into the preserved prefix (frontmatter + H1 line)
- * and the editable body that comes after it.
- */
-function splitNoteContent(content: string): { prefix: string; body: string } {
-  // Match the YAML frontmatter block
-  const fmMatch = content.match(/^---\n[\s\S]*?\n---\n/);
-  if (!fmMatch) {
-    return { prefix: "", body: content };
-  }
-  const afterFm = content.slice(fmMatch[0].length);
-
-  // Match an optional blank line + H1 heading + optional newline
-  const titleMatch = afterFm.match(/^\n*# [^\n]*\n?/);
-  if (!titleMatch) {
-    return { prefix: fmMatch[0], body: afterFm };
-  }
-
-  const prefix = fmMatch[0] + titleMatch[0];
-  const body = afterFm.slice(titleMatch[0].length);
-  return { prefix, body };
-}
-
-type NoteTab = "note" | "history";
+type NoteTab = "note" | "history" | "description";
 
 export class ExerciseNoteModal extends Modal {
   private plugin: WorkoutTrackerPlugin;
@@ -41,6 +19,8 @@ export class ExerciseNoteModal extends Modal {
   private history: Workout[] | null = null;
   /** duration-only exercises log seconds; cardio logs minutes. */
   private durationUnit = "min";
+  /** Owns the lifecycle of anything MarkdownRenderer creates. */
+  private renderComponent = new Component();
 
   constructor(
     app: App,
@@ -75,9 +55,13 @@ export class ExerciseNoteModal extends Modal {
     };
     addTab("note", "Note");
     addTab("history", "History");
+    addTab("description", "Description");
 
     this.bodyEl = contentEl.createDiv({ cls: "exercise-note-modal-body" });
-    this.setTab("note");
+    // MarkdownRenderer needs a Component for its lifecycle and Modal is not one,
+    // so the modal owns one and unloads it on close.
+    this.renderComponent.load();
+    void this.chooseInitialTab();
   }
 
   private setTab(tab: NoteTab): void {
@@ -87,9 +71,73 @@ export class ExerciseNoteModal extends Modal {
     });
     if (tab === "note") {
       void this.renderNote();
+    } else if (tab === "description") {
+      void this.renderDescription();
     } else {
       void this.renderHistory();
     }
+  }
+
+  /**
+   * Opens on Description when there is one and the user has not written notes
+   * yet — for a freshly imported exercise "how does this go again" is the actual
+   * question being asked.
+   */
+  private async chooseInitialTab(): Promise<void> {
+    const sections = await this.readSections();
+    this.setTab(sections && sections.description && !sections.notes ? "description" : "note");
+  }
+
+  private async readSections() {
+    const file = this.app.vault.getFileByPath(this.filePath);
+    if (!file) return null;
+    return parseExerciseNote(await this.app.vault.read(file));
+  }
+
+  private async renderDescription(): Promise<void> {
+    const container = this.bodyEl;
+    if (!container) return;
+    container.empty();
+
+    const file = this.app.vault.getFileByPath(this.filePath);
+    if (!file) {
+      container.createEl("p", {
+        text: "Exercise note file not found.",
+        cls: "exercise-note-modal-error",
+      });
+      return;
+    }
+
+    const sections = parseExerciseNote(await this.app.vault.read(file));
+    if (this.tab !== "description") return;
+
+    if (!sections.description) {
+      const empty = container.createDiv({ cls: "exercise-note-modal-empty" });
+      empty.createEl("p", {
+        text: "No description yet.",
+        cls: "setting-item-description",
+      });
+      const button = empty.createEl("button", {
+        text: "Find this exercise in the catalog",
+        cls: "mod-cta",
+      });
+      button.onclick = () => {
+        this.close();
+        void this.plugin.attachCatalogDescription(file);
+      };
+      return;
+    }
+
+    const rendered = container.createDiv({ cls: "exercise-note-modal-description" });
+    // Rendering through Obsidian resolves embeds and wikilinks against the note,
+    // and keeps third-party text off any innerHTML path.
+    await MarkdownRenderer.render(
+      this.app,
+      sections.description,
+      rendered,
+      this.filePath,
+      this.renderComponent
+    );
   }
 
   private async renderNote(): Promise<void> {
@@ -107,12 +155,12 @@ export class ExerciseNoteModal extends Modal {
     }
 
     const raw = await this.app.vault.read(file);
-    const { prefix, body } = splitNoteContent(raw);
+    const sections = parseExerciseNote(raw);
 
     const textarea = container.createEl("textarea", {
       cls: "exercise-note-modal-textarea",
     });
-    textarea.value = body;
+    textarea.value = sections.notes;
     // Focus and move cursor to end after rendering
     window.requestAnimationFrame(() => {
       if (this.tab !== "note") return;
@@ -127,8 +175,11 @@ export class ExerciseNoteModal extends Modal {
       cls: "mod-cta exercise-note-modal-save",
     });
     saveBtn.onclick = async () => {
-      const newContent = prefix + textarea.value;
-      await this.app.vault.modify(file, newContent);
+      // Splices the ## Notes section only. Re-reading inside process() keeps a
+      // description added elsewhere in the meantime intact.
+      await this.app.vault.process(file, (current) =>
+        writeNotesSection(current, textarea.value)
+      );
       new Notice(`Saved note for "${this.exerciseName}".`);
       this.close();
     };
@@ -228,6 +279,7 @@ export class ExerciseNoteModal extends Modal {
   }
 
   onClose() {
+    this.renderComponent.unload();
     this.contentEl.empty();
   }
 }

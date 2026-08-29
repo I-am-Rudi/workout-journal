@@ -8,6 +8,8 @@ import {
   EXERCISE_TYPE_LABELS,
   isDurationOnly,
 } from "../utils/exerciseTypeUtils";
+import { CatalogExercise } from "../utils/catalogService";
+import { toTitleCase } from "../utils/titleCase";
 
 const VALID_SET_TYPES = new Set<SetType>(["default", "warmup", "dropset", "myoreps"]);
 
@@ -86,23 +88,14 @@ export class AddSessionExerciseModal extends Modal {
         ex.muscleGroups.some((mg) => mg.toLowerCase().includes(q))
     );
 
-    if (filtered.length === 0) {
+    if (filtered.length === 0 && !this.searchQuery.trim()) {
       this.listEl.createEl("p", { text: "No exercises found.", cls: "workout-add-exercise-empty" });
-      if (this.searchQuery.trim()) {
-        const createBtn = this.listEl.createEl("button", {
-          text: `Create "${this.searchQuery.trim()}" as new exercise`,
-          cls: "workout-add-exercise-create-new",
-        });
-        createBtn.onclick = async () => {
-          await this.createAndAddExercise(this.searchQuery.trim());
-        };
-      }
       return;
     }
 
     filtered.forEach((ex) => {
       const item = this.listEl.createDiv({ cls: "workout-add-exercise-item" });
-      item.createEl("span", { text: ex.name, cls: "workout-add-exercise-name" });
+      item.createSpan({ text: ex.name, cls: "workout-add-exercise-name" });
       if (ex.muscleGroups?.length) {
         item.createEl("small", {
           text: ex.muscleGroups.join(", "),
@@ -116,6 +109,85 @@ export class AddSessionExerciseModal extends Modal {
         })();
       });
     });
+
+    this.renderCatalogGroup(filtered.length);
+  }
+
+  /**
+   * Catalog results sit below the user's own exercises, dimmed.
+   *
+   * Picking one writes the note and uses it immediately, so importing is a side
+   * effect of doing the thing you wanted rather than a separate chore — which is
+   * what keeps the exercise folder to exactly what someone actually trains.
+   */
+  private renderCatalogGroup(ownCount: number): void {
+    const query = this.searchQuery.trim();
+    if (!query) return;
+
+    const owned = new Set(this.exercises.map((ex) => ex.name.toLowerCase()));
+    const matches = this.plugin.catalogService
+      .loadIndex()
+      .filter((record) => {
+        if (this.restrictToType && this.restrictToType !== "duration-only") {
+          // Only cardio can be derived from the dataset, so a restricted picker
+          // cannot honestly promise a match for the other types.
+          if (this.restrictToType === "cardio" && record.bodyPart !== "cardio") return false;
+        }
+        return (
+          record.name.toLowerCase().includes(query.toLowerCase()) &&
+          !owned.has(toTitleCase(record.name).toLowerCase())
+        );
+      })
+      .slice(0, 8);
+
+    if (matches.length) {
+      this.listEl.createEl("p", {
+        text: ownCount ? "From the exercise catalog" : "Not in your library yet — from the catalog",
+        cls: "workout-add-exercise-group-label",
+      });
+
+      for (const record of matches) {
+        const item = this.listEl.createDiv({
+          cls: "workout-add-exercise-item workout-add-exercise-item-catalog",
+        });
+        item.createSpan({
+          text: toTitleCase(record.name),
+          cls: "workout-add-exercise-name",
+        });
+        item.createEl("small", {
+          text: [record.equipment, record.target].filter(Boolean).join(", "),
+          cls: "workout-add-exercise-muscles",
+        });
+        item.addEventListener("click", () => {
+          void this.importAndAdd(record);
+        });
+      }
+    }
+
+    const createBtn = this.listEl.createEl("button", {
+      text: `Create "${query}" as new exercise`,
+      cls: "workout-add-exercise-create-new",
+    });
+    createBtn.onclick = async () => {
+      await this.createAndAddExercise(query);
+    };
+  }
+
+  private async importAndAdd(record: CatalogExercise): Promise<void> {
+    try {
+      const result = await this.plugin.catalogImportService.importRecord(record, {
+        typeOverride: this.restrictToType,
+      });
+      const def = result.file
+        ? { ...result.definition, filePath: result.file.path }
+        : result.definition;
+      new Notice(`Exercise note created: ${def.name}`);
+      this.onAdd(await this.buildSessionExercise(def));
+      this.close();
+    } catch (error) {
+      console.error("Workout Journal: could not import from the catalog", error);
+      new Notice("Could not import that exercise. See the console for details.");
+    }
   }
 
   private async createAndAddExercise(name: string): Promise<void> {

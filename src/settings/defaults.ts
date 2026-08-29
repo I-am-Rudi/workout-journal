@@ -56,6 +56,9 @@ export const DEFAULT_SETTINGS: WorkoutTrackerSettings = {
     routineCount: 0,
   },
   homeExpandedPlans: {},
+  // Catalog images are linked rather than copied; see exerciseMediaService.
+  exerciseImageMode: "remote",
+  exerciseImageAnimated: false,
   noteTemplates: {
     exercise: { frontmatter: "", body: "" },
     routine: { frontmatter: "", body: "" },

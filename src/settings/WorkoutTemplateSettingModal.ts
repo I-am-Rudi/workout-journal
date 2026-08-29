@@ -100,7 +100,7 @@ export class WorkoutTemplateSettingModal extends Modal {
 		}
 		this.template.exercises.forEach((name) => {
 			const chip = this.selectedEl.createDiv({ cls: "wt-template-exercise-chip" });
-			chip.createEl("span", { text: name });
+			chip.createSpan({ text: name });
 			const removeBtn = chip.createEl("button", { text: "✕", cls: "wt-template-exercise-chip-remove" });
 			removeBtn.onclick = () => {
 				this.template.exercises = this.template.exercises.filter(n => n !== name);
@@ -127,7 +127,7 @@ export class WorkoutTemplateSettingModal extends Modal {
 
 		filtered.forEach((ex) => {
 			const item = this.listEl.createDiv({ cls: "workout-add-exercise-item" });
-			item.createEl("span", { text: ex.name, cls: "workout-add-exercise-name" });
+			item.createSpan({ text: ex.name, cls: "workout-add-exercise-name" });
 			if (ex.muscleGroups?.length) {
 				item.createEl("small", {
 					text: ex.muscleGroups.join(", "),

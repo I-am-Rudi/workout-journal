@@ -1,6 +1,7 @@
 import { App, Notice, Setting, TFile } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
 import { ExerciseDefinitionModal } from "../modals/ExerciseDefinitionModal";
+import { CatalogBrowseModal } from "../modals/CatalogBrowseModal";
 
 export class ExerciseSettingsPage {
   async render(containerEl: HTMLElement, app: App, plugin: WorkoutTrackerPlugin, onBack: () => void): Promise<void> {
@@ -82,10 +83,16 @@ export class ExerciseSettingsPage {
 
     await renderList();
 
-    new Setting(containerEl).addButton((btn) =>
-      btn.setButtonText("Add exercise").setCta().onClick(() => {
-        new ExerciseDefinitionModal(app, plugin, () => { void renderList(); }).open();
-      })
-    );
+    new Setting(containerEl)
+      .addButton((btn) =>
+        btn.setButtonText("Add exercise").setCta().onClick(() => {
+          new ExerciseDefinitionModal(app, plugin, () => { void renderList(); }).open();
+        })
+      )
+      .addButton((btn) =>
+        btn.setButtonText("Browse catalog").onClick(() => {
+          new CatalogBrowseModal(app, plugin, () => { void renderList(); }).open();
+        })
+      );
   }
 }

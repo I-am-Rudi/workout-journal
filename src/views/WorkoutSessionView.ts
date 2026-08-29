@@ -304,11 +304,11 @@ export class WorkoutSessionView extends ItemView {
       // Exercise-level notes (global, from the exercise definition) – read-only
       if (exercise.exerciseNotes) {
         const noteBlock = card.createDiv({ cls: "workout-session-exercise-notes" });
-        noteBlock.createEl("span", {
+        noteBlock.createSpan({
           text: "📝 Exercise note: ",
           cls: "workout-session-exercise-notes-label",
         });
-        noteBlock.createEl("span", {
+        noteBlock.createSpan({
           text: exercise.exerciseNotes,
           cls: "workout-session-exercise-notes-content",
         });
@@ -575,7 +575,7 @@ export class WorkoutSessionView extends ItemView {
         })
       );
 
-    contentEl.createEl("div", { cls: "workout-session-bottom-spacer" });
+    contentEl.createDiv({ cls: "workout-session-bottom-spacer" });
     contentEl.scrollTop = previousScrollTop;
   }
 
@@ -615,7 +615,7 @@ export class WorkoutSessionView extends ItemView {
     const repsOnly = isRepsOnly(exercise.exerciseType);
     const isRoutineEdit = !!this.session?.routineEditMode;
     if (durationOnly) {
-      header.createEl("span", {
+      header.createSpan({
         text: `${set.duration ?? "0"}s`,
         cls: "workout-session-set-card-target",
       });
@@ -624,7 +624,7 @@ export class WorkoutSessionView extends ItemView {
         if (this.session) this.session.hasRoutineChanges = true;
       });
       if (this.session?.isCircle) {
-        header.createEl("span", { text: "pause", cls: "workout-session-set-card-target" });
+        header.createSpan({ text: "pause", cls: "workout-session-set-card-target" });
         this.renderDurationEditor(header, set.restTime, (restTime) => {
           set.restTime = restTime;
           if (this.session) this.session.hasRoutineChanges = true;
@@ -632,13 +632,13 @@ export class WorkoutSessionView extends ItemView {
       }
     } else if (isCardio) {
       const targetText = `${set.duration ?? "0"}min / ${set.distance ?? "0"}${this.distanceUnit()}`;
-      header.createEl("span", { text: targetText, cls: "workout-session-set-card-target" });
+      header.createSpan({ text: targetText, cls: "workout-session-set-card-target" });
       this.renderCardioEditor(header, set.duration, set.distance, (duration, distance) => {
         set.duration = duration;
         set.distance = distance;
       });
     } else if (repsOnly) {
-      header.createEl("span", {
+      header.createSpan({
         text: `${set.targetReps ?? "0"} reps`,
         cls: "workout-session-set-card-target",
       });
@@ -656,7 +656,7 @@ export class WorkoutSessionView extends ItemView {
       );
     } else {
       const targetText = `${set.targetWeight ?? "0"} × ${set.targetReps ?? "0"}`;
-      header.createEl("span", { text: targetText, cls: "workout-session-set-card-target" });
+      header.createSpan({ text: targetText, cls: "workout-session-set-card-target" });
       this.renderSetEditor(header, isRoutineEdit ? set.targetWeight : set.actualWeight, isRoutineEdit ? set.targetReps : set.actualReps, (weight, reps) => {
         if (isRoutineEdit) {
           set.targetWeight = weight;
@@ -1083,7 +1083,7 @@ export class WorkoutSessionView extends ItemView {
     };
 
     tick();
-    const intervalId = window.setInterval(tick, 1000) as unknown as number;
+    const intervalId = window.setInterval(tick, 1000);
     this.timerIntervals.set(exerciseIndex, intervalId);
   }
 
@@ -1138,7 +1138,7 @@ export class WorkoutSessionView extends ItemView {
       display.textContent = `⏱ ${minutes}:${seconds.toString().padStart(2, "0")} — tap to stop`;
     };
     tick();
-    const intervalId = window.setInterval(tick, 1000) as unknown as number;
+    const intervalId = window.setInterval(tick, 1000);
     this.timerIntervals.set(exerciseIndex, intervalId);
   }
 

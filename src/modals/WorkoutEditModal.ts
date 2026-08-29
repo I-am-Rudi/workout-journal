@@ -140,13 +140,13 @@ export class WorkoutEditModal extends Modal {
     }
 
     this.workout.exercises.forEach((exercise, index) => {
-      const exerciseEl = container.createEl("div", {
+      const exerciseEl = container.createDiv({
         cls: "workout-exercise-item",
       });
 
-      const nameEl = exerciseEl.createEl("div");
+      const nameEl = exerciseEl.createDiv();
       nameEl.createEl("strong", { text: exercise.name });
-      nameEl.createEl("span", { text: ` (${exercise.sets.length} sets)` });
+      nameEl.createSpan({ text: ` (${exercise.sets.length} sets)` });
 
       if (exercise.notes) {
         nameEl.createEl("br");
@@ -156,7 +156,7 @@ export class WorkoutEditModal extends Modal {
         });
       }
 
-      const buttonContainer = exerciseEl.createEl("div");
+      const buttonContainer = exerciseEl.createDiv();
 
       const editBtn = buttonContainer.createEl("button", {
         text: "Edit",

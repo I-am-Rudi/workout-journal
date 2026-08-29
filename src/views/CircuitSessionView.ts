@@ -280,7 +280,7 @@ export class CircuitSessionView extends ItemView {
     this.tickIntervalId = window.setInterval(
       () => this.tick(),
       TICK_INTERVAL_MS
-    ) as unknown as number;
+    );
     if (this.playPauseBtn) this.playPauseBtn.textContent = "Pause";
   }
 

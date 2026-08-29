@@ -1,6 +1,8 @@
 import { App, TFile } from "obsidian";
 import { Workout, ExerciseDefinition } from "../types";
 import { PerformanceCsvService } from "./performanceCsvService";
+import { CatalogMatcher } from "./catalogMatcher";
+import { CatalogImportService } from "./catalogImportService";
 import { WorkoutFileService } from "./workoutFileService";
 import { DefinitionFileService } from "./definitionFileService";
 import { createIdFromName } from "./idUtils";
@@ -301,6 +303,8 @@ export interface StrongImportOptions {
   createWorkoutNotes: boolean;
   addToPerformanceCsv: boolean;
   importExerciseDefinitions: boolean;
+  /** Fill imported exercises in from the bundled catalog where names match. */
+  enrichFromCatalog: boolean;
   skipDuplicates: boolean;
 }
 
@@ -308,6 +312,8 @@ export interface StrongImportResult {
   workoutsCreated: number;
   workoutsSkipped: number;
   exercisesImported: number;
+  /** How many of those were recognised in the catalog. */
+  exercisesMatched: number;
   errors: string[];
 }
 
@@ -325,7 +331,9 @@ export class StrongImportService {
     private app: App,
     private performanceCsvService: PerformanceCsvService,
     private workoutFileService: WorkoutFileService,
-    private definitionFileService: DefinitionFileService
+    private definitionFileService: DefinitionFileService,
+    private catalogMatcher?: CatalogMatcher,
+    private catalogImportService?: CatalogImportService
   ) {}
 
   summarize(workouts: Workout[]): WorkoutsSummary {
@@ -352,6 +360,7 @@ export class StrongImportService {
       workoutsCreated: 0,
       workoutsSkipped: 0,
       exercisesImported: 0,
+      exercisesMatched: 0,
       errors: [],
     };
 
@@ -392,7 +401,21 @@ export class StrongImportService {
     if (options.importExerciseDefinitions) {
       for (const def of exerciseDefs) {
         try {
-          await this.definitionFileService.createExerciseDefinition(def);
+          let toCreate = def;
+
+          // Catalog enrichment runs on exact word-set matches only. Fuzzy
+          // candidates are close enough to look right and wrong often enough to
+          // matter, so anything short of an exact match is left for the user to
+          // resolve with "Attach description from the exercise catalog".
+          if (options.enrichFromCatalog && this.catalogImportService && this.catalogMatcher) {
+            const match = this.catalogMatcher.findExact(def.name);
+            if (match) {
+              toCreate = await this.catalogImportService.enrichDefinition(def, match);
+              result.exercisesMatched++;
+            }
+          }
+
+          await this.definitionFileService.createExerciseDefinition(toCreate);
           result.exercisesImported++;
         } catch (err) {
           result.errors.push(

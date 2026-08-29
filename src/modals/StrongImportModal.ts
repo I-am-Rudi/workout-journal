@@ -27,6 +27,7 @@ export class StrongImportModal extends Modal {
     createWorkoutNotes: true,
     addToPerformanceCsv: true,
     importExerciseDefinitions: false,
+    enrichFromCatalog: true,
     skipDuplicates: true,
   };
 
@@ -43,7 +44,9 @@ export class StrongImportModal extends Modal {
       app,
       plugin.performanceCsvService,
       plugin.fileService,
-      plugin.definitionService
+      plugin.definitionService,
+      plugin.catalogMatcher,
+      plugin.catalogImportService
     );
   }
 
@@ -147,6 +150,18 @@ export class StrongImportModal extends Modal {
           })
       );
 
+    new Setting(contentEl)
+      .setName("Fill in descriptions from the exercise catalog")
+      .setDesc(
+        "Recognises exercises by name and adds the catalog description, muscles and equipment. Your exercise names are kept exactly as Strong wrote them."
+      )
+      .addToggle((toggle) =>
+        toggle.setValue(this.options.enrichFromCatalog).onChange((v) => {
+          this.options.enrichFromCatalog = v;
+          this.updatePreview();
+        })
+      );
+
     // ── Preview ───────────────────────────────────────────────────────────
     new Setting(contentEl).setName("Preview").setHeading();
     this.previewEl = contentEl.createEl("p", {
@@ -178,11 +193,28 @@ export class StrongImportModal extends Modal {
     const summary = this.importService.summarize(this.parsedWorkouts);
     const dr = summary.dateRange;
     const dateRange = dr ? `${dr.earliest} → ${dr.latest}` : "—";
-    this.previewEl.setText(
+
+    let line =
       `${this.parsedWorkouts.length} workouts found` +
-        ` | ${summary.uniqueExerciseCount} unique exercises` +
-        ` | Date range: ${dateRange}`
-    );
+      ` | ${summary.uniqueExerciseCount} unique exercises` +
+      ` | Date range: ${dateRange}`;
+
+    // Showing the match count up front keeps the miss rate honest: Strong names
+    // like "Bench Press (Barbell)" only line up with the catalog some of the
+    // time, and the rest are attached one at a time afterwards.
+    if (this.options.enrichFromCatalog && this.parsedWorkouts.length) {
+      const names = new Set<string>();
+      for (const workout of this.parsedWorkouts) {
+        for (const exercise of workout.exercises) names.add(exercise.name);
+      }
+      let matched = 0;
+      for (const name of names) {
+        if (this.plugin.catalogMatcher.findExact(name)) matched++;
+      }
+      line += ` | ${matched} of ${names.size} recognised in the catalog`;
+    }
+
+    this.previewEl.setText(line);
   }
 
   private showError(msg: string) {
@@ -216,8 +248,11 @@ export class StrongImportModal extends Modal {
         if (result.workoutsSkipped > 0)
           parts.push(`${result.workoutsSkipped} skipped`);
       }
-      if (this.options.importExerciseDefinitions && result.exercisesImported > 0)
+      if (this.options.importExerciseDefinitions && result.exercisesImported > 0) {
         parts.push(`${result.exercisesImported} exercises imported`);
+        if (result.exercisesMatched > 0)
+          parts.push(`${result.exercisesMatched} matched to the catalog`);
+      }
 
       new Notice(`Strong import complete: ${parts.join(", ")}.`);
 

@@ -1,3 +1,7 @@
+import { ExerciseImageMode } from "../utils/exerciseMediaService";
+
+export type { ExerciseImageMode };
+
 export interface NoteContentTemplate {
   /** YAML text whose parsed properties are merged into the generated frontmatter. */
   frontmatter?: string;
@@ -33,6 +37,13 @@ export interface WorkoutTrackerSettings {
   enableRestTimerSoundFeedback: boolean;
   migration: MigrationState;
   noteTemplates: NoteContentTemplates;
+  /**
+   * How exercises imported from the catalog get their picture. Only "none" and
+   * "remote" are offered in settings; "local" works if set by hand.
+   */
+  exerciseImageMode: ExerciseImageMode;
+  /** Use the animated GIF instead of the still image. */
+  exerciseImageAnimated: boolean;
   /** Plan cards the user has opened on the home page, keyed by plan id. */
   homeExpandedPlans: Record<string, boolean>;
 }
@@ -112,7 +123,20 @@ export interface ExerciseDefinition {
   name: string;
   type: ExerciseType;
   muscleGroups: string[];
+  /** The `## Notes` section: the user's own scratch space. */
   notes?: string;
+  /** The `## Description` section: catalog text and media, plugin-managed. */
+  description?: string;
+  equipment?: string;
+  /** `"exercises-dataset"` when this note came from, or was linked to, the catalog. */
+  source?: string;
+  /** Upstream catalog id — the key for re-import dedup and later updates. */
+  sourceId?: string;
+  /** The catalog's own name, kept as a cross-reference. Never used to rename. */
+  catalogName?: string;
+  /** Upstream media basename; what makes an image-mode switch retroactive. */
+  mediaId?: string;
+  mediaMode?: ExerciseImageMode;
   defaultSets?: number;
   defaultReps?: number;
   defaultWeight?: number;

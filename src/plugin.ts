@@ -25,6 +25,13 @@ import { WorkoutFileService } from "./utils/workoutFileService";
 import { DefinitionFileService } from "./utils/definitionFileService";
 import { PerformanceCsvService } from "./utils/performanceCsvService";
 import { WorkoutSessionService } from "./utils/workoutSessionService";
+import { CatalogService } from "./utils/catalogService";
+import { CatalogMatcher } from "./utils/catalogMatcher";
+import { CatalogImportService } from "./utils/catalogImportService";
+import { ExerciseMediaService } from "./utils/exerciseMediaService";
+import { CatalogPickerModal } from "./modals/CatalogPickerModal";
+import { CatalogBrowseModal } from "./modals/CatalogBrowseModal";
+import { ConfirmChoiceModal } from "./modals/ConfirmChoiceModal";
 import { createIdFromName, generateId } from "./utils/idUtils";
 import {
   DEFAULT_CIRCUIT_REST_SECONDS,
@@ -75,6 +82,11 @@ export default class WorkoutTrackerPlugin extends Plugin {
   definitionService: DefinitionFileService;
   performanceCsvService: PerformanceCsvService;
   workoutSessionService: WorkoutSessionService;
+  catalogService: CatalogService;
+  catalogImportService: CatalogImportService;
+  mediaService: ExerciseMediaService;
+  /** Built on first use — decoding the index costs nothing until then. */
+  private catalogMatcherInstance: CatalogMatcher | null = null;
   activeSession: WorkoutSession | null = null;
   private sessionLeaf: WorkspaceLeaf | null = null;
   private fileModifyEventRef: EventRef | undefined;
@@ -99,6 +111,15 @@ export default class WorkoutTrackerPlugin extends Plugin {
     );
     this.workoutSessionService = new WorkoutSessionService(
       this.performanceCsvService
+    );
+    this.catalogService = new CatalogService();
+    this.mediaService = new ExerciseMediaService(this.app);
+    this.catalogImportService = new CatalogImportService(
+      this.app,
+      this.catalogService,
+      this.definitionService,
+      this.mediaService,
+      this.settings
     );
 
     this.registerView(
@@ -155,7 +176,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
       window.setInterval(
         () => this.persistActiveSession(),
         WorkoutTrackerPlugin.SESSION_AUTOSAVE_INTERVAL_MS
-      ) as unknown as number
+      )
     );
     this.registerDomEvent(activeDocument, "visibilitychange", () => {
       if (activeDocument.visibilityState === "hidden") {
@@ -354,6 +375,29 @@ export default class WorkoutTrackerPlugin extends Plugin {
       id: "import-from-strong",
       name: "Import from strong app",
       callback: () => new StrongImportModal(this.app, this).open(),
+    });
+
+    this.addCommand({
+      id: "browse-exercise-catalog",
+      name: "Browse the exercise catalog",
+      callback: () => {
+        new CatalogBrowseModal(this.app, this, () => undefined).open();
+      },
+    });
+
+    this.addCommand({
+      id: "attach-catalog-description",
+      name: "Attach description from the exercise catalog",
+      // Depends on the active note actually being an exercise note, so it stays
+      // out of the palette everywhere else.
+      checkCallback: (checking: boolean) => {
+        const file = this.app.workspace.getActiveFile();
+        if (!file || file.extension !== "md") return false;
+        const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
+        if (frontmatter?.["wj-type"] !== "exercise") return false;
+        if (!checking) void this.attachCatalogDescription(file);
+        return true;
+      },
     });
 
     this.addCommand({
@@ -577,6 +621,9 @@ export default class WorkoutTrackerPlugin extends Plugin {
     if (this.performanceCsvService) {
       this.performanceCsvService.setPath(this.settings.performanceCsvPath);
     }
+    if (this.catalogImportService) {
+      this.catalogImportService.setSettings(this.settings);
+    }
   }
 
   async saveSettings() {
@@ -590,6 +637,55 @@ export default class WorkoutTrackerPlugin extends Plugin {
     if (this.performanceCsvService) {
       this.performanceCsvService.setPath(this.settings.performanceCsvPath);
     }
+    if (this.catalogImportService) {
+      this.catalogImportService.setSettings(this.settings);
+    }
+  }
+
+  /** Word-set matcher over the bundled catalog, built on first use. */
+  get catalogMatcher(): CatalogMatcher {
+    if (!this.catalogMatcherInstance) {
+      this.catalogMatcherInstance = new CatalogMatcher(this.catalogService.loadIndex());
+    }
+    return this.catalogMatcherInstance;
+  }
+
+  /**
+   * Opens the catalog picker for an exercise note that already exists and
+   * writes the chosen description into it. Never renames the note.
+   */
+  async attachCatalogDescription(file: TFile): Promise<void> {
+    const definition = await this.definitionService.loadExerciseFromFile(file);
+    if (!definition) {
+      new Notice("This note is not an exercise note.");
+      return;
+    }
+
+    new CatalogPickerModal(
+      this.app,
+      this.catalogService.loadIndex(),
+      this.catalogMatcher,
+      definition.name,
+      (record) => {
+        void (async () => {
+          try {
+            if (definition.description) {
+              const replace = await ConfirmChoiceModal.ask(this.app, {
+                title: "Replace description?",
+                message: `"${definition.name}" already has a description. Replace it with the one from the catalog? Your notes are not affected.`,
+                confirmLabel: "Replace",
+              });
+              if (!replace) return;
+            }
+            await this.catalogImportService.enrichExistingNote(file, record);
+            new Notice(`Added the catalog description to "${definition.name}".`);
+          } catch (error) {
+            console.error("Workout Journal: could not attach the description", error);
+            new Notice("Could not attach the description. See the console for details.");
+          }
+        })();
+      }
+    ).open();
   }
 
   async createWorkoutFile(workout: Workout): Promise<void> {
@@ -1328,6 +1424,6 @@ export default class WorkoutTrackerPlugin extends Plugin {
       })();
     }, this.settings.autoSyncDelayMs);
 
-    this.syncTimeouts.set(file.path, timeout as unknown as number);
+    this.syncTimeouts.set(file.path, timeout);
   }
 }

@@ -9,7 +9,7 @@ export function parseTemplateFrontmatter(yaml: string | undefined): Record<strin
   try {
     const parsed = parseYaml(yaml) as Record<string, unknown> | null | unknown[];
     return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
+      ? parsed
       : {};
   } catch {
     return {};

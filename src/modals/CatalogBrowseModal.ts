@@ -1,4 +1,4 @@
-import { App, Modal, Notice, Setting } from "obsidian";
+import { App, ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
 import { CatalogExercise } from "../utils/catalogService";
 import { toTitleCase } from "../utils/titleCase";
@@ -25,7 +25,10 @@ export class CatalogBrowseModal extends Modal {
 
   private listEl!: HTMLElement;
   private countEl!: HTMLElement;
-  private importBtn: HTMLButtonElement | null = null;
+  // The component, not its element: ButtonComponent gates its own click
+  // callback on an internal `disabled` flag, so toggling `buttonEl.disabled`
+  // re-enables the button visually while the click stays swallowed.
+  private importBtn: ButtonComponent | null = null;
 
   constructor(app: App, plugin: WorkoutTrackerPlugin, onDone: () => void) {
     super(app);
@@ -82,7 +85,7 @@ export class CatalogBrowseModal extends Modal {
           .setButtonText("Import selected")
           .setCta()
           .onClick(() => void this.importSelected());
-        this.importBtn = btn.buttonEl;
+        this.importBtn = btn;
         btn.setDisabled(true);
       })
       .addButton((btn) => btn.setButtonText("Close").onClick(() => this.close()));
@@ -145,36 +148,42 @@ export class CatalogBrowseModal extends Modal {
   }
 
   private updateImportButton(): void {
-    if (!this.importBtn) return;
+    // Explicit null check: BaseComponent has a `then()` chaining helper, so a
+    // truthiness test on a component trips no-misused-promises.
+    if (this.importBtn === null) return;
     const count = this.selected.size;
-    this.importBtn.disabled = count === 0;
-    this.importBtn.setText(count ? `Import ${count}` : "Import selected");
+    this.importBtn.setDisabled(count === 0);
+    this.importBtn.setButtonText(count ? `Import ${count}` : "Import selected");
   }
 
   private async importSelected(): Promise<void> {
     const ids = [...this.selected];
     if (!ids.length) return;
 
-    if (this.importBtn) this.importBtn.disabled = true;
+    this.importBtn?.setDisabled(true);
     let imported = 0;
+    let failed = 0;
 
     for (const id of ids) {
       const record = this.plugin.catalogService.getById(id);
       if (!record) continue;
+      this.importBtn?.setButtonText(`Importing ${imported + failed + 1}/${ids.length}…`);
       try {
         const result = await this.plugin.catalogImportService.importRecord(record, {
           existing: this.existing.get(id),
         });
         if (!result.skipped) imported++;
       } catch (error) {
+        failed++;
         console.error(`Workout Journal: could not import "${record.name}"`, error);
       }
     }
 
+    const summary = imported === 1 ? "Imported 1 exercise." : `Imported ${imported} exercises.`;
     new Notice(
-      imported === 1
-        ? "Imported 1 exercise."
-        : `Imported ${imported} exercises.`
+      failed
+        ? `${summary} ${failed} failed — see the console for details.`
+        : summary
     );
     this.selected.clear();
     this.existing = await this.plugin.catalogImportService.existingBySourceId();

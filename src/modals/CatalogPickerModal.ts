@@ -21,13 +21,23 @@ export class CatalogPickerModal extends FuzzySuggestModal<CatalogExercise> {
     records: CatalogExercise[],
     matcher: CatalogMatcher,
     seed: string,
-    onChoose: (record: CatalogExercise) => void
+    onChoose: (record: CatalogExercise) => void,
+    /** What pressing enter does, for the instruction strip. */
+    chooseLabel = "attach description"
   ) {
     super(app);
     this.records = records;
     this.onChoose = onChoose;
 
-    const ranked = seed ? matcher.rankCandidates(seed, 25) : [];
+    // The matcher ranks over the whole catalog, so its hits are intersected
+    // with `records` — a caller that passes a subset (a cardio-only picker,
+    // say) must not have the ranking smuggle the rest back in.
+    const allowed = new Set(records.map((record) => record.id));
+    const ranked = seed
+      ? matcher
+          .rankCandidates(seed, 25)
+          .filter((match) => allowed.has(match.record.id))
+      : [];
     const seen = new Set(ranked.map((match) => match.record.id));
     this.ordered = [
       ...ranked.map((match) => match.record),
@@ -37,7 +47,7 @@ export class CatalogPickerModal extends FuzzySuggestModal<CatalogExercise> {
     this.setPlaceholder("Search the exercise catalog…");
     this.setInstructions([
       { command: "↑↓", purpose: "browse" },
-      { command: "↵", purpose: "attach description" },
+      { command: "↵", purpose: chooseLabel },
       { command: "esc", purpose: "cancel" },
     ]);
   }

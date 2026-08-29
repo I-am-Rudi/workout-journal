@@ -15,7 +15,9 @@ So far the plugin is mostly self-tested and was specifically designed to be used
 in my own vault. But I hope it can be useful to others as well, and I welcome any
 feedback, bug reports, or contributions.
 
-![Active session](./assets/active-session.gif)
+<p align="center">
+  <img src="./assets/overview-first-look.gif" width="280" alt="A first look at Workout Journal: plans, routines and the exercise library">
+</p>
 
 ## Why this and not a fitness app
 
@@ -41,6 +43,19 @@ feedback, bug reports, or contributions.
 - ⭕ **Circuit routines** with a guided player that counts down each work and
   pause window and walks you through the rounds
 - 📱 **Built for the gym** — the whole session flow is designed to work on mobile
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="./assets/active-session.gif" width="280" alt="Working through a session: ticking off sets, rest timer, adding exercises">
+      <br><sub><b>An active session</b> — sets, rest timer, notes</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="./assets/circuit-training.gif" width="280" alt="The circuit player counting down work and pause windows across rounds">
+      <br><sub><b>A circuit</b> — guided work and pause windows</sub>
+    </td>
+  </tr>
+</table>
 
 ### Organising your training
 
@@ -108,8 +123,6 @@ The fastest path from a fresh install to your first logged set:
    train — or skip this and add them as you go
 3. Build a **routine** from those exercises
 4. Tap the ribbon icon and start the routine
-
-<img src="./assets/ribbon-menu.png" width="300">
 
 ### Interfaces
 
@@ -263,7 +276,9 @@ Settings → Community plugins → Workout Journal:
   the plugin creates, so it fits your existing vault conventions
 - **Library management** for exercises, routines and plans
 
-<img src="./assets/settings.png" width="300">
+<p align="center">
+  <img src="./assets/settings.gif" width="280" alt="The settings tab: folders, units, rest timer, exercise images and library management">
+</p>
 
 ## Development
 

@@ -8,6 +8,9 @@ import {
   isDurationOnly,
   isRepsOnly,
 } from "../utils/exerciseTypeUtils";
+import { CatalogExercise } from "../utils/catalogService";
+import { CatalogPickerModal } from "./CatalogPickerModal";
+import { toTitleCase } from "../utils/titleCase";
 
 export class ExerciseDefinitionModal extends Modal {
   private plugin: WorkoutTrackerPlugin;
@@ -24,6 +27,21 @@ export class ExerciseDefinitionModal extends Modal {
   private defaultDistance: number | undefined;
   private notes = "";
 
+  /**
+   * Catalog-owned fields. They are not editable here, but they must survive a
+   * save: applyExerciseFrontmatter deletes every key whose value is undefined,
+   * so dropping them would strip the note's catalog link on the next edit.
+   */
+  private equipment: string | undefined;
+  private description: string | undefined;
+  private source: string | undefined;
+  private sourceId: string | undefined;
+  private catalogName: string | undefined;
+  private mediaId: string | undefined;
+  private mediaMode: ExerciseDefinition["mediaMode"];
+  /** Set when the user picks a record this session; applied on save. */
+  private pickedRecord: CatalogExercise | undefined;
+
   constructor(app: App, plugin: WorkoutTrackerPlugin, onSave: () => void, existing?: ExerciseDefinition) {
     super(app);
     this.plugin = plugin;
@@ -39,6 +57,13 @@ export class ExerciseDefinitionModal extends Modal {
       this.defaultDuration = existing.defaultDuration;
       this.defaultDistance = existing.defaultDistance;
       this.notes = existing.notes ?? "";
+      this.equipment = existing.equipment;
+      this.description = existing.description;
+      this.source = existing.source;
+      this.sourceId = existing.sourceId;
+      this.catalogName = existing.catalogName;
+      this.mediaId = existing.mediaId;
+      this.mediaMode = existing.mediaMode;
     }
   }
 
@@ -54,6 +79,8 @@ export class ExerciseDefinitionModal extends Modal {
     new Setting(contentEl).setName("Name").addText((t) =>
       t.setValue(this.name).onChange((v) => { this.name = v.trim(); })
     );
+
+    this.renderCatalogRow(contentEl);
 
     new Setting(contentEl).setName("Type").addDropdown((d) => {
       for (const type of EXERCISE_TYPES) {
@@ -129,6 +156,83 @@ export class ExerciseDefinitionModal extends Modal {
     );
   }
 
+  /**
+   * Pulls muscle groups, equipment and a description off a catalog record so
+   * the whole form does not have to be typed by hand.
+   */
+  private renderCatalogRow(contentEl: HTMLElement): void {
+    const linked = this.pickedRecord
+      ? toTitleCase(this.pickedRecord.name)
+      : this.catalogName
+        ? toTitleCase(this.catalogName)
+        : null;
+
+    const setting = new Setting(contentEl)
+      .setName("Exercise catalog")
+      .setDesc(
+        linked
+          ? `Linked to "${linked}". Muscle groups, equipment and the description come from the catalog.`
+          : `Fill this in from one of the ${this.plugin.catalogService.size} bundled exercises instead of typing it.`
+      );
+
+    setting.addButton((btn) =>
+      btn
+        .setButtonText(linked ? "Pick a different one" : "Find in catalog")
+        .onClick(() => this.openCatalogPicker())
+    );
+
+    if (linked) {
+      setting.addButton((btn) =>
+        btn.setButtonText("Unlink").onClick(() => {
+          this.pickedRecord = undefined;
+          this.equipment = undefined;
+          this.description = undefined;
+          this.source = undefined;
+          this.sourceId = undefined;
+          this.catalogName = undefined;
+          this.mediaId = undefined;
+          this.mediaMode = undefined;
+          this.render();
+        })
+      );
+    }
+  }
+
+  private openCatalogPicker(): void {
+    new CatalogPickerModal(
+      this.app,
+      this.plugin.catalogService.loadIndex(),
+      this.plugin.catalogMatcher,
+      this.name,
+      (record) => this.applyCatalogRecord(record),
+      "use this exercise"
+    ).open();
+  }
+
+  /**
+   * Fills the form from a record. The name is only adopted for a brand-new
+   * exercise — an existing note is referenced by name from workout notes and
+   * the performance CSV, so renaming it here would orphan its logged history.
+   */
+  private applyCatalogRecord(record: CatalogExercise): void {
+    this.pickedRecord = record;
+
+    if (!this.existing) {
+      this.name = toTitleCase(record.name);
+    }
+    if (this.muscleGroups.length === 0) {
+      this.muscleGroups = [record.target, ...record.secondaryMuscles].filter(Boolean);
+    }
+    this.equipment = record.equipment || undefined;
+    // Only ever upgrades to cardio, so a deliberate reps-only or duration-only
+    // choice is never clobbered.
+    if (record.bodyPart === "cardio" && this.type === "strength") {
+      this.type = "cardio";
+    }
+
+    this.render();
+  }
+
   private async save(): Promise<void> {
     if (!this.name) {
       new Notice("Exercise name is required.");
@@ -136,7 +240,7 @@ export class ExerciseDefinitionModal extends Modal {
     }
     const repsOnly = isRepsOnly(this.type);
     const durationOnly = isDurationOnly(this.type);
-    const def: ExerciseDefinition = {
+    let def: ExerciseDefinition = {
       id: this.existing?.id ?? createIdFromName(this.name),
       name: this.name,
       type: this.type,
@@ -151,7 +255,26 @@ export class ExerciseDefinitionModal extends Modal {
       lastPerformedReps: durationOnly ? undefined : this.existing?.lastPerformedReps,
       lastPerformedWeight:
         durationOnly || repsOnly ? undefined : this.existing?.lastPerformedWeight,
+      equipment: this.equipment,
+      description: this.description,
+      source: this.source,
+      sourceId: this.sourceId,
+      catalogName: this.catalogName,
+      mediaId: this.mediaId,
+      mediaMode: this.mediaMode,
     };
+
+    // Resolving the description hits the media service, so it only happens for
+    // a record picked in this session — not on every save of a linked note.
+    if (this.pickedRecord) {
+      try {
+        def = await this.plugin.catalogImportService.enrichDefinition(def, this.pickedRecord);
+      } catch (error) {
+        console.error("Workout Journal: could not read the catalog entry", error);
+        new Notice("Could not read that catalog entry. Saving without it.");
+      }
+    }
+
     await this.plugin.definitionService.createExerciseDefinition(def);
     new Notice(`Exercise saved: ${def.name}`);
     this.onSave();

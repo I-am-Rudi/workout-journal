@@ -10,6 +10,7 @@ import {
 } from "../utils/exerciseTypeUtils";
 import { CatalogExercise } from "../utils/catalogService";
 import { toTitleCase } from "../utils/titleCase";
+import { CatalogPickerModal } from "./CatalogPickerModal";
 
 const VALID_SET_TYPES = new Set<SetType>(["default", "warmup", "dropset", "myoreps"]);
 
@@ -74,8 +75,42 @@ export class AddSessionExerciseModal extends Modal {
       window.setTimeout(() => text.inputEl.focus(), 50);
     });
 
+    // The inline group below only surfaces substring hits on what has been
+    // typed. This opens the whole catalog with fuzzy matching, which is the
+    // faster route when the name you want is not what the dataset calls it.
+    new Setting(contentEl)
+      .setName("Not in your library?")
+      .setDesc(
+        this.restrictToType === "cardio"
+          ? "Search the cardio entries in the exercise catalog."
+          : `Search all ${this.plugin.catalogService.size} exercises in the catalog.`
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Search catalog")
+          .onClick(() => this.openCatalogSearch())
+      );
+
     this.listEl = contentEl.createDiv({ cls: "workout-add-exercise-list" });
     this.renderList();
+  }
+
+  /**
+   * Full-catalog search, seeded with whatever is already typed. Picking a
+   * record imports it and adds it to the session in one step, exactly like the
+   * inline catalog rows.
+   */
+  private openCatalogSearch(): void {
+    new CatalogPickerModal(
+      this.app,
+      this.catalogCandidates(),
+      this.plugin.catalogMatcher,
+      this.searchQuery.trim(),
+      (record) => {
+        void this.importAndAdd(record);
+      },
+      "add to session"
+    ).open();
   }
 
   private renderList() {
@@ -114,6 +149,22 @@ export class AddSessionExerciseModal extends Modal {
   }
 
   /**
+   * Catalog records this picker is allowed to offer.
+   *
+   * Only the cardio split can be derived from the dataset, so a picker
+   * restricted to cardio filters on it; for the other restricted types the
+   * catalog cannot honestly promise a match, and the record is retyped on
+   * import via `typeOverride` instead.
+   */
+  private catalogCandidates(): CatalogExercise[] {
+    const index = this.plugin.catalogService.loadIndex();
+    if (this.restrictToType === "cardio") {
+      return index.filter((record) => record.bodyPart === "cardio");
+    }
+    return index;
+  }
+
+  /**
    * Catalog results sit below the user's own exercises, dimmed.
    *
    * Picking one writes the note and uses it immediately, so importing is a side
@@ -125,19 +176,12 @@ export class AddSessionExerciseModal extends Modal {
     if (!query) return;
 
     const owned = new Set(this.exercises.map((ex) => ex.name.toLowerCase()));
-    const matches = this.plugin.catalogService
-      .loadIndex()
-      .filter((record) => {
-        if (this.restrictToType && this.restrictToType !== "duration-only") {
-          // Only cardio can be derived from the dataset, so a restricted picker
-          // cannot honestly promise a match for the other types.
-          if (this.restrictToType === "cardio" && record.bodyPart !== "cardio") return false;
-        }
-        return (
+    const matches = this.catalogCandidates()
+      .filter(
+        (record) =>
           record.name.toLowerCase().includes(query.toLowerCase()) &&
           !owned.has(toTitleCase(record.name).toLowerCase())
-        );
-      })
+      )
       .slice(0, 8);
 
     if (matches.length) {

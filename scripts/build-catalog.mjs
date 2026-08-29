@@ -41,7 +41,11 @@ const rows = records.map((r) => [
   eIdx.get(r.equipment ?? ""),
   mIdx.get(r.target ?? ""),
   (r.secondary_muscles ?? []).map((m) => mIdx.get(m)),
-  r.media_id ?? "",
+  // Upstream `media_id` is only the hash half of the filename; the files are
+  // named `<id>-<hash>.jpg` / `.gif`. Store the full basename, which is what
+  // CatalogExercise.mediaId is documented to hold and what the URL builders
+  // in catalogSource.ts append an extension to.
+  r.media_id ? `${r.id}-${r.media_id}` : "",
 ]);
 
 const payload = JSON.stringify({ b: bodyParts, e: equipment, m: muscles, x: rows });

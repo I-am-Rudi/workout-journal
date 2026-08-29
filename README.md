@@ -173,7 +173,7 @@ wj-source-id: "0025"
 
 ## Description
 
-![](https://cdn.jsdelivr.net/gh/…/images/0025-Xa9fLm2.jpg)
+![](https://cdn.jsdelivr.net/gh/…/images/0025-EIeI8Vf.jpg)
 
 Lie flat on a bench with your feet planted…
 

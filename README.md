@@ -92,10 +92,8 @@ feedback, bug reports, or contributions.
 
 ## Installation
 
-### From the Obsidian community plugins (coming soon)
-
-I will submit the plugin to the official Obsidian community plugins directory.
-Once it is approved you will be able to install it directly from inside Obsidian.
+You can simply get it from the Obsidian community plugins browser, or install it
+manually:
 
 ### With BRAT (recommended for beta testing)
 

@@ -1,4 +1,4 @@
-import { ItemView, Notice, Platform, Setting, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, Platform, setIcon, WorkspaceLeaf } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
 import { SessionFinishOptions, SetType, WorkoutSession, WorkoutSessionExercise, WorkoutSessionSet } from "../types";
 import { AddSessionExerciseModal } from "../modals/AddSessionExerciseModal";
@@ -6,6 +6,14 @@ import { ExerciseNoteModal } from "../modals/ExerciseNoteModal";
 import { ConfirmModal } from "../modals/ConfirmModal";
 import { FeedbackPlayer } from "../utils/feedbackUtils";
 import { isDurationOnly, isRepsOnly } from "../utils/exerciseTypeUtils";
+import {
+  formatElapsed,
+  getSessionElapsedMs,
+  hasSessionTimer,
+  isSessionTimerRunning,
+  pauseSessionTimer,
+  resumeSessionTimer,
+} from "../utils/sessionTimerUtils";
 
 export const WORKOUT_SESSION_VIEW_TYPE = "workout-tracker-session-view";
 
@@ -17,6 +25,11 @@ export class WorkoutSessionView extends ItemView {
   private timerDisplays: Map<number, HTMLElement> = new Map();
   private feedback = new FeedbackPlayer();
   private visibilityHandler: (() => void) | null = null;
+  /** Live workout clock: one ticker, redrawn from the session timestamps. */
+  private elapsedIntervalId: number | null = null;
+  private elapsedChipEl: HTMLElement | null = null;
+  private elapsedIconEl: HTMLElement | null = null;
+  private elapsedValueEl: HTMLElement | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: WorkoutTrackerPlugin) {
     super(leaf);
@@ -37,6 +50,7 @@ export class WorkoutSessionView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    this.stopElapsedTicker();
     this.timerIntervals.forEach((intervalId) => window.clearInterval(intervalId));
     this.timerIntervals.clear();
     this.timerEndTimes.clear();
@@ -85,6 +99,7 @@ export class WorkoutSessionView extends ItemView {
     this.timerIntervals.forEach((id) => window.clearInterval(id));
     this.timerIntervals.clear();
     this.timerDisplays.clear();
+    this.stopElapsedTicker();
 
     const { contentEl } = this;
     const previousScrollTop = contentEl.scrollTop;
@@ -97,18 +112,25 @@ export class WorkoutSessionView extends ItemView {
     }
     const session = this.session;
 
-    const titleEl = contentEl.createDiv({
-      text: this.session.name,
+    const header = contentEl.createDiv({ cls: "workout-session-header" });
+    const headerText = header.createDiv({ cls: "workout-session-header-text" });
+    const titleEl = headerText.createDiv({
+      text: session.name,
       cls: "workout-session-title",
     });
     titleEl.setAttr("role", "heading");
     titleEl.setAttr("aria-level", "2");
-    const meta = contentEl.createEl("p", { cls: "workout-session-meta" });
+    const meta = headerText.createDiv({ cls: "workout-session-meta" });
     meta.setText(
-      `${this.session.date}${
-        this.session.routineName ? ` • Routine: ${this.session.routineName}` : ""
-      }${this.session.planName ? ` • Plan: ${this.session.planName}` : ""}`
+      `${session.date}${
+        session.routineName ? ` · ${session.routineName}` : ""
+      }${session.planName ? ` · ${session.planName}` : ""}`
     );
+
+    // Routine editing is not a workout, so it carries no clock.
+    if (!session.routineEditMode && hasSessionTimer(session)) {
+      this.renderElapsedChip(header, session);
+    }
 
     const cardEls: HTMLElement[] = [];
 
@@ -477,106 +499,169 @@ export class WorkoutSessionView extends ItemView {
 
       // A circuit exercise is a single work/pause pair, so extra sets are noise.
       if (!session.isCircle) {
-        new Setting(card).addButton((btn) =>
-          btn.setButtonText("Add set").onClick(() => {
-            const lastSet = exercise.sets[exercise.sets.length - 1];
-            exercise.sets.push({
-              setIndex: exercise.sets.length + 1,
-              completed: false,
-              duration: durationOnly ? lastSet?.duration : undefined,
-              targetReps: lastSet?.targetReps,
-              targetWeight: lastSet?.targetWeight,
-              actualReps: lastSet?.actualReps ?? lastSet?.targetReps,
-              actualWeight: lastSet?.actualWeight ?? lastSet?.targetWeight,
-            });
-            session.hasRoutineChanges = true;
-            this.render();
-          })
-        );
+        const addSetBtn = card.createEl("button", {
+          text: "Add set",
+          cls: "workout-session-add-set",
+        });
+        addSetBtn.onclick = () => {
+          const lastSet = exercise.sets[exercise.sets.length - 1];
+          exercise.sets.push({
+            setIndex: exercise.sets.length + 1,
+            completed: false,
+            duration: durationOnly ? lastSet?.duration : undefined,
+            targetReps: lastSet?.targetReps,
+            targetWeight: lastSet?.targetWeight,
+            actualReps: lastSet?.actualReps ?? lastSet?.targetReps,
+            actualWeight: lastSet?.actualWeight ?? lastSet?.targetWeight,
+          });
+          session.hasRoutineChanges = true;
+          this.render();
+        };
       }
 
     });
 
-    // Add Exercise button
-    new Setting(contentEl)
-      .setName("Exercises")
-      .addButton((btn) =>
-        btn.setButtonText("Add exercise").onClick(() => {
-          void (async () => {
-            const exercises = await this.plugin.definitionService.loadExerciseDefinitions();
-            new AddSessionExerciseModal(this.app, this.plugin, exercises, (newExercise) => {
-              session.exercises.push(newExercise);
-              session.hasRoutineChanges = true;
-              this.render();
-            }, this.plugin.performanceCsvService, session.routineId,
-            session.isCircle ? "duration-only" : undefined).open();
-          })();
-        })
-      );
+    const addExerciseBtn = contentEl.createEl("button", {
+      cls: "workout-session-add-exercise",
+    });
+    setIcon(addExerciseBtn.createSpan({ cls: "workout-session-btn-icon" }), "plus");
+    addExerciseBtn.createSpan({ text: "Add exercise" });
+    addExerciseBtn.onclick = () => {
+      void (async () => {
+        const exercises = await this.plugin.definitionService.loadExerciseDefinitions();
+        new AddSessionExerciseModal(this.app, this.plugin, exercises, (newExercise) => {
+          session.exercises.push(newExercise);
+          session.hasRoutineChanges = true;
+          this.render();
+        }, this.plugin.performanceCsvService, session.routineId,
+        session.isCircle ? "duration-only" : undefined).open();
+      })();
+    };
 
-    new Setting(contentEl)
-      .setName(session.routineEditMode ? "Routine notes" : "Workout notes")
-      .addTextArea((text) =>
-        text
-          .setValue(session.notes || "")
-          .setPlaceholder(session.routineEditMode ? "Add routine notes…" : "Add workout notes…")
-          .onChange((value) => {
-            session.notes = value;
-          })
-      );
-    const workoutNotesTextArea = contentEl.querySelector<HTMLTextAreaElement>(
-      ".setting-item:last-of-type textarea"
-    );
-    if (workoutNotesTextArea) {
-      workoutNotesTextArea.addClass("workout-session-workout-notes");
-      workoutNotesTextArea.rows = 4;
-    }
+    const notesBlock = contentEl.createDiv({ cls: "workout-session-notes-block" });
+    notesBlock.createDiv({
+      text: session.routineEditMode ? "Routine notes" : "Workout notes",
+      cls: "workout-session-section-label",
+    });
+    const notesArea = notesBlock.createEl("textarea", {
+      cls: "workout-session-workout-notes",
+    });
+    notesArea.rows = 4;
+    notesArea.value = session.notes || "";
+    notesArea.placeholder = session.routineEditMode
+      ? "Add routine notes…"
+      : "Add workout notes…";
+    notesArea.addEventListener("input", () => {
+      session.notes = notesArea.value;
+    });
+
+    const actions = contentEl.createDiv({ cls: "workout-session-actions" });
 
     if (session.routineEditMode) {
-      new Setting(contentEl)
-        .addButton((btn) =>
-          btn.setButtonText("Save routine").setCta().onClick(() => {
-            void this.plugin.saveRoutineFromSession();
-          })
-        )
-        .addButton((btn) =>
-          btn.setButtonText("Discard changes").setWarning().onClick(() => {
-            new ConfirmModal(
-              this.plugin.app,
-              "Discard all changes to this routine?",
-              () => {
-                void this.plugin.cancelActiveSession();
-              }
-            ).open();
-          })
-        );
+      const saveBtn = actions.createEl("button", {
+        text: "Save routine",
+        cls: "workout-session-action workout-session-action-primary",
+      });
+      saveBtn.onclick = () => {
+        void this.plugin.saveRoutineFromSession();
+      };
+
+      const discardBtn = actions.createEl("button", {
+        text: "Discard changes",
+        cls: "workout-session-action workout-session-action-danger",
+      });
+      discardBtn.onclick = () => {
+        new ConfirmModal(
+          this.plugin.app,
+          "Discard all changes to this routine?",
+          () => {
+            void this.plugin.cancelActiveSession();
+          }
+        ).open();
+      };
+
+      contentEl.createDiv({ cls: "workout-session-bottom-spacer" });
       contentEl.scrollTo({ top: previousScrollTop });
       return;
     }
 
-    new Setting(contentEl)
-      .addButton((btn) =>
-        btn
-          .setButtonText("Finish workout")
-          .setCta()
-          .onClick(() => {
-            this.plugin.finishActiveSessionFromView();
-          })
-      )
-      .addButton((btn) =>
-        btn.setButtonText("Cancel session").setWarning().onClick(() => {
-          new ConfirmModal(
-            this.plugin.app,
-            "Are you sure you want to cancel this session? All progress will be lost.",
-            () => {
-              void this.plugin.cancelActiveSession();
-            }
-          ).open();
-        })
-      );
+    const finishBtn = actions.createEl("button", {
+      text: "Finish workout",
+      cls: "workout-session-action workout-session-action-primary",
+    });
+    finishBtn.onclick = () => {
+      this.plugin.finishActiveSessionFromView();
+    };
+
+    const cancelBtn = actions.createEl("button", {
+      text: "Cancel session",
+      cls: "workout-session-action workout-session-action-danger",
+    });
+    cancelBtn.onclick = () => {
+      new ConfirmModal(
+        this.plugin.app,
+        "Are you sure you want to cancel this session? All progress will be lost.",
+        () => {
+          void this.plugin.cancelActiveSession();
+        }
+      ).open();
+    };
 
     contentEl.createDiv({ cls: "workout-session-bottom-spacer" });
     contentEl.scrollTop = previousScrollTop;
+  }
+
+  /**
+   * The workout clock. It reads the session timestamps on every tick rather
+   * than counting, so pausing, a screen lock, or a reopened view all agree.
+   */
+  private renderElapsedChip(container: HTMLElement, session: WorkoutSession): void {
+    const chip = container.createEl("button", {
+      cls: "workout-session-elapsed",
+      attr: { type: "button" },
+    });
+    this.elapsedChipEl = chip;
+    this.elapsedIconEl = chip.createSpan({ cls: "workout-session-elapsed-icon" });
+    this.elapsedValueEl = chip.createSpan({ cls: "workout-session-elapsed-value" });
+
+    chip.onclick = () => {
+      if (isSessionTimerRunning(session)) {
+        pauseSessionTimer(session);
+      } else {
+        resumeSessionTimer(session);
+      }
+      this.plugin.persistActiveSession();
+      this.updateElapsedChip();
+    };
+
+    this.updateElapsedChip();
+    this.elapsedIntervalId = window.setInterval(() => this.updateElapsedChip(), 1000);
+  }
+
+  private updateElapsedChip(): void {
+    const session = this.session;
+    if (!session || !this.elapsedChipEl || !this.elapsedIconEl || !this.elapsedValueEl) {
+      return;
+    }
+    const running = isSessionTimerRunning(session);
+    this.elapsedValueEl.setText(formatElapsed(getSessionElapsedMs(session)));
+    this.elapsedChipEl.toggleClass("is-paused", !running);
+    setIcon(this.elapsedIconEl, running ? "pause" : "play");
+    const label = running
+      ? "Workout time — click to pause"
+      : "Workout timer paused — click to resume";
+    this.elapsedChipEl.setAttr("aria-label", label);
+    this.elapsedChipEl.setAttr("title", label);
+  }
+
+  private stopElapsedTicker(): void {
+    if (this.elapsedIntervalId !== null) {
+      window.clearInterval(this.elapsedIntervalId);
+      this.elapsedIntervalId = null;
+    }
+    this.elapsedChipEl = null;
+    this.elapsedIconEl = null;
+    this.elapsedValueEl = null;
   }
 
   private renderSetCard(

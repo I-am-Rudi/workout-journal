@@ -34,6 +34,10 @@ import { CatalogBrowseModal } from "./modals/CatalogBrowseModal";
 import { ConfirmChoiceModal } from "./modals/ConfirmChoiceModal";
 import { createIdFromName, generateId } from "./utils/idUtils";
 import {
+  absorbOfflineGap,
+  getSessionDurationMinutes,
+} from "./utils/sessionTimerUtils";
+import {
   DEFAULT_CIRCUIT_REST_SECONDS,
   DEFAULT_CIRCUIT_WORK_SECONDS,
 } from "./utils/exerciseTypeUtils";
@@ -498,10 +502,12 @@ export default class WorkoutTrackerPlugin extends Plugin {
       ) {
         return;
       }
-      this.activeSession = session;
-      this.lastPersistedSessionJson = JSON.stringify(session);
       const savedAt = Date.parse(String(parsed?.savedAt ?? ""));
       this.restoredSessionSavedAt = Number.isNaN(savedAt) ? null : savedAt;
+      // The workout clock must not count the hours Obsidian was closed.
+      absorbOfflineGap(session, this.restoredSessionSavedAt);
+      this.activeSession = session;
+      this.lastPersistedSessionJson = JSON.stringify(session);
     } catch (error) {
       console.error(
         "Workout Journal: could not restore the previous workout session.",
@@ -865,14 +871,23 @@ export default class WorkoutTrackerPlugin extends Plugin {
   }
 
   finishActiveSessionFromView(): void {
-    const hasUnfinishedSets =
-      this.activeSession?.exercises.some((exercise) =>
-        exercise.sets.some((set) => !set.completed)
-      ) || false;
+    const session = this.activeSession;
+    if (!session) {
+      new Notice("No active session to finish.");
+      return;
+    }
+    const hasUnfinishedSets = session.exercises.some((exercise) =>
+      exercise.sets.some((set) => !set.completed)
+    );
 
-    new SessionFinishModal(this.app, hasUnfinishedSets, (options) => {
-      void this.finishActiveSession(options);
-    }).open();
+    new SessionFinishModal(
+      this.app,
+      hasUnfinishedSets,
+      getSessionDurationMinutes(session),
+      (options) => {
+        void this.finishActiveSession(options);
+      }
+    ).open();
   }
 
   async finishActiveSession(options: SessionFinishOptions): Promise<void> {
@@ -889,7 +904,10 @@ export default class WorkoutTrackerPlugin extends Plugin {
       sessionToSave = this.workoutSessionService.applyTargetUpdates(sessionToSave);
     }
 
-    const workout = this.workoutSessionService.toWorkoutLog(sessionToSave);
+    const workout = this.workoutSessionService.toWorkoutLog(
+      sessionToSave,
+      options.durationMinutes
+    );
     await this.createWorkoutFile(workout);
     await this.performanceCsvService.appendSession(sessionToSave);
     if (options.storeNewTargets) {
@@ -981,6 +999,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
           isCircle: true,
           circuitRounds: rounds,
           hasRoutineChanges: false,
+          startedAt: Date.now(),
           notes: routine.notes,
           exercises: usable.map((entry) => {
             const def = defById.get(entry.exerciseId);
@@ -1048,6 +1067,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
       id: session.id,
       date: session.date,
       name: session.name,
+      duration: getSessionDurationMinutes(session),
       sourceRoutineId: session.routineId,
       sourcePlanId: session.planId,
       notes: session.notes,

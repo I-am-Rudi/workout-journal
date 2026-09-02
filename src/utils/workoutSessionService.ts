@@ -9,6 +9,7 @@ import {
 } from "../types";
 import { PerformanceCsvService } from "./performanceCsvService";
 import { generateId } from "./idUtils";
+import { getSessionDurationMinutes } from "./sessionTimerUtils";
 
 export class WorkoutSessionService {
   csvService: PerformanceCsvService;
@@ -87,6 +88,7 @@ export class WorkoutSessionService {
       planName: options?.planName,
       exercises,
       hasRoutineChanges: false,
+      startedAt: Date.now(),
     };
   }
 
@@ -129,11 +131,12 @@ export class WorkoutSessionService {
     };
   }
 
-  toWorkoutLog(session: WorkoutSession): Workout {
+  toWorkoutLog(session: WorkoutSession, durationMinutes?: number): Workout {
     return {
       id: session.id,
       date: session.date,
       name: session.name,
+      duration: durationMinutes ?? getSessionDurationMinutes(session),
       sourceRoutineId: session.routineId,
       sourcePlanId: session.planId,
       exercises: session.exercises.map((exercise) => ({

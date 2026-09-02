@@ -8,6 +8,12 @@ import {
 import { WorkoutStatsModal } from "./WorkoutStatsModal";
 import { RoutineBuilderModal } from "../settings/RoutineBuilderModal";
 import { PlanBuilderModal } from "../settings/PlanBuilderModal";
+import {
+  formatElapsed,
+  getSessionElapsedMs,
+  hasSessionTimer,
+  isSessionTimerRunning,
+} from "../utils/sessionTimerUtils";
 
 /**
  * The plugin's landing page: resume or start a workout, then the library —
@@ -105,8 +111,13 @@ export class WorkoutHomeModal extends Modal {
         cls: "workout-home-resume-name",
       });
       const exerciseCount = activeSession.exercises.length;
+      const elapsed = hasSessionTimer(activeSession)
+        ? ` · ${formatElapsed(getSessionElapsedMs(activeSession))}${
+            isSessionTimerRunning(activeSession) ? "" : " (paused)"
+          }`
+        : "";
       info.createDiv({
-        text: `${exerciseCount} exercise${exerciseCount === 1 ? "" : "s"} · ${activeSession.date}`,
+        text: `${exerciseCount} exercise${exerciseCount === 1 ? "" : "s"} · ${activeSession.date}${elapsed}`,
         cls: "workout-home-resume-meta",
       });
       const resumeBtn = card.createEl("button", {

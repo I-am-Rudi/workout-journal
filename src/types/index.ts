@@ -241,12 +241,23 @@ export interface WorkoutSession {
   isCircle?: boolean;
   /** Number of times the circuit is repeated. Only set for circuit sessions. */
   circuitRounds?: number;
+  /**
+   * Epoch ms when the workout timer started. Absent while a routine is being
+   * edited — that is not a workout and is never timed.
+   */
+  startedAt?: number;
+  /** Epoch ms when the timer was paused; absent while it runs. */
+  pausedAt?: number;
+  /** Total milliseconds spent paused so far. */
+  pausedMs?: number;
 }
 
 export interface SessionFinishOptions {
   fillUncompletedSets: boolean;
   storeNewTargets: boolean;
   routineChangeStrategy: "overwrite" | "create_new" | "ignore";
+  /** Logged workout duration in minutes; the measured value unless edited. */
+  durationMinutes?: number;
 }
 
 /** One leg of a running circuit: either a work interval or the pause after it. */

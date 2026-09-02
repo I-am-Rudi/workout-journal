@@ -680,10 +680,9 @@ export class WorkoutSessionView extends ItemView {
     // Header row: set number | target | done checkbox + remove button
     const header = card.createDiv({ cls: "workout-session-set-card-header" });
     const setType = set.setType || "default";
-    const isDefault = setType === "default";
     const displayLabel = this.getSetDisplayLabel(exercise.sets, index);
     const setTypeBtnMobile = header.createEl("button", {
-      text: isDefault ? `Set ${displayLabel}` : displayLabel,
+      text: displayLabel,
       cls: `workout-session-set-card-set-num workout-session-set-type-btn workout-session-set-type-${setType}`,
       title: "Click to change set type",
     });

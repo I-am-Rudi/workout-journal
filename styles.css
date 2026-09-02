@@ -355,7 +355,7 @@
     min-height: 40px;
     padding: 6px 14px;
     border: none;
-    border-radius: var(--wj-radius-pill);
+    border-radius: var(--wj-radius-card);
     background: var(--wj-accent-soft);
     color: var(--text-normal);
     box-shadow: none;
@@ -845,8 +845,10 @@
         font-size: 12px;
     }
 
+    /* Just the number, in the same box as every other control. */
     .workout-session-set-card-set-num {
-        font-weight: 600;
+        min-width: 30px;
+        font-weight: 700;
         font-size: 13px;
     }
 }
@@ -901,7 +903,7 @@
     font-size: 11px;
     font-weight: 600;
     padding: 4px 10px;
-    border-radius: var(--wj-radius-pill);
+    border-radius: var(--wj-radius-control);
     line-height: 1.4;
     flex-shrink: 0;
     white-space: nowrap;
@@ -1053,7 +1055,7 @@
     padding: 4px 8px;
     font-size: 12px;
     font-weight: 700;
-    border-radius: var(--wj-radius-pill);
+    border-radius: var(--wj-radius-control);
     border: 1px solid;
     cursor: pointer;
     background: transparent;
@@ -1141,16 +1143,16 @@
     padding: 12px 16px;
     border: none;
     border-radius: var(--wj-radius-card);
-    background: var(--wj-accent-soft);
+    background: color-mix(in srgb, var(--interactive-accent) 10%, transparent);
     box-shadow: none;
-    color: var(--text-normal);
+    color: var(--text-accent);
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
 }
 
 .workout-session-add-exercise:hover {
-    background: var(--wj-accent-soft-hover);
+    background: color-mix(in srgb, var(--interactive-accent) 18%, transparent);
 }
 
 .workout-session-btn-icon {
@@ -1185,22 +1187,24 @@
     cursor: pointer;
 }
 
+/* Finish carries the accent, softened a touch so it stays calm; cancel gets a
+   red wash rather than a red slab; adding an exercise only hints at the accent. */
 .workout-session-action-primary {
-    background: var(--interactive-accent);
+    background: color-mix(in srgb, var(--interactive-accent) 88%, var(--background-primary));
     color: var(--text-on-accent);
 }
 
 .workout-session-action-primary:hover {
-    background: var(--interactive-accent-hover);
+    background: var(--interactive-accent);
 }
 
 .workout-session-action-danger {
-    background: transparent;
+    background: var(--wj-danger-soft);
     color: var(--text-error);
 }
 
 .workout-session-action-danger:hover {
-    background: var(--wj-danger-soft);
+    background: color-mix(in srgb, var(--text-error) 20%, transparent);
 }
 
 /* ── Finish workout modal ──────────────────────────────────── */
@@ -1401,7 +1405,7 @@
 .workout-circuit-btn-step {
     flex: 0 0 64px;
     min-width: 64px;
-    border-radius: var(--wj-radius-pill);
+    border-radius: var(--wj-radius-card);
     font-size: 18px;
     line-height: 1;
 }
@@ -1612,7 +1616,7 @@
 
 .workout-home-plan-header {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     gap: 4px;
     padding: 4px 8px 4px 4px;
 }
@@ -1624,7 +1628,7 @@
     flex: 1 1 auto;
     min-width: 0;
     padding: 8px;
-    border-radius: 8px;
+    border-radius: var(--wj-radius-control);
     cursor: pointer;
     text-align: left;
     background: transparent;
@@ -1667,8 +1671,15 @@
 
 .workout-home-plan-actions {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     gap: 2px;
+}
+
+/* The plan's own buttons run the full height of the folder row next to them,
+   so the three hit boxes read as one bar. */
+.workout-home-plan-actions .workout-home-icon-btn {
+    height: auto;
+    min-height: var(--wj-touch);
 }
 
 .workout-home-plan-body {
@@ -1739,10 +1750,11 @@
     flex: 0 0 auto;
 }
 
+/* Tags stay pill-shaped; controls are boxes. */
 .workout-home-chip {
     flex: 0 0 auto;
     padding: 1px 7px;
-    border-radius: 999px;
+    border-radius: var(--wj-radius-pill);
     font-size: 11px;
     font-weight: 500;
     background: var(--background-modifier-border);

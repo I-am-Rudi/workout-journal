@@ -38,6 +38,8 @@ feedback, bug reports, or contributions.
   jot notes without leaving the screen
 - ⏱️ **Rest timer** that survives a locked screen, with optional sound and
   vibration feedback
+- ⏲️ **Workout clock** running in the session header — tap it to pause and resume,
+  and the elapsed time is logged with the finished workout
 - 🔁 **Previous values pre-filled** from your last performance, so you always know
   what you did last time
 - ⭕ **Circuit routines** with a guided player that counts down each work and
@@ -83,8 +85,8 @@ feedback, bug reports, or contributions.
 
 - 📊 **Statistics** — personal records, streaks, volume, exercise frequency and
   progression charts
-- 🕒 **Every workout as its own note**, with a readable table underneath the
-  frontmatter
+- 🕒 **Every workout as its own note**, with its duration and a readable table
+  underneath the frontmatter
 - 🗂️ **A performance CSV** alongside the notes, for when you want to do your own
   analysis in a spreadsheet or a notebook
 - 🔄 **Import from the Strong app** — bring your whole history across, and let the

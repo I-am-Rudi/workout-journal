@@ -1,9 +1,16 @@
-import { ItemView, Notice, Setting, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, setIcon, Setting, WorkspaceLeaf } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
 import { CircuitStep, WorkoutSession } from "../types";
 import { ConfirmModal } from "../modals/ConfirmModal";
 import { FeedbackPlayer } from "../utils/feedbackUtils";
 import { formatSeconds } from "../utils/exerciseTypeUtils";
+import {
+  formatElapsed,
+  getSessionElapsedMs,
+  hasSessionTimer,
+  pauseSessionTimer,
+  resumeSessionTimer,
+} from "../utils/sessionTimerUtils";
 
 export const CIRCUIT_SESSION_VIEW_TYPE = "workout-tracker-circuit-view";
 
@@ -38,6 +45,7 @@ export class CircuitSessionView extends ItemView {
   private visibilityHandler: (() => void) | null = null;
 
   private countdownEl: HTMLElement | null = null;
+  private elapsedEl: HTMLElement | null = null;
   private stepLabelEl: HTMLElement | null = null;
   private exerciseNameEl: HTMLElement | null = null;
   private roundLabelEl: HTMLElement | null = null;
@@ -148,14 +156,27 @@ export class CircuitSessionView extends ItemView {
       return;
     }
 
-    const titleEl = contentEl.createDiv({
+    const header = contentEl.createDiv({ cls: "workout-session-header" });
+    const headerText = header.createDiv({ cls: "workout-session-header-text" });
+    const titleEl = headerText.createDiv({
       text: session.name,
       cls: "workout-session-title",
     });
     titleEl.setAttr("role", "heading");
     titleEl.setAttr("aria-level", "2");
+    this.roundLabelEl = headerText.createDiv({ cls: "workout-circuit-round" });
 
-    this.roundLabelEl = contentEl.createDiv({ cls: "workout-circuit-round" });
+    // Total workout time, driven by the transport rather than by its own click.
+    this.elapsedEl = null;
+    if (hasSessionTimer(session)) {
+      const chip = header.createDiv({
+        cls: "workout-session-elapsed workout-session-elapsed-static",
+      });
+      setIcon(chip.createSpan({ cls: "workout-session-elapsed-icon" }), "timer");
+      this.elapsedEl = chip.createSpan({ cls: "workout-session-elapsed-value" });
+      chip.setAttr("title", "Total workout time");
+      this.updateElapsed();
+    }
 
     if (!this.steps.length) {
       contentEl.createEl("p", {
@@ -249,6 +270,11 @@ export class CircuitSessionView extends ItemView {
   private armStep(index: number): void {
     const step = this.steps[index];
     if (!step) return;
+    // An armed circuit is held, not running, so the workout clock waits too.
+    if (this.session) {
+      pauseSessionTimer(this.session);
+      this.plugin.persistActiveSession();
+    }
     this.stepIndex = index;
     this.stepEndTime = null;
     this.pausedRemainingMs = step.seconds * 1000;
@@ -277,6 +303,10 @@ export class CircuitSessionView extends ItemView {
 
   private startTicking(): void {
     this.stopTicking();
+    if (this.session) {
+      resumeSessionTimer(this.session);
+      this.plugin.persistActiveSession();
+    }
     this.tickIntervalId = window.setInterval(
       () => this.tick(),
       TICK_INTERVAL_MS
@@ -393,6 +423,10 @@ export class CircuitSessionView extends ItemView {
 
   private pause(): void {
     if (!this.isRunning || this.stepEndTime === null) return;
+    if (this.session) {
+      pauseSessionTimer(this.session);
+      this.plugin.persistActiveSession();
+    }
     this.pausedRemainingMs = Math.max(0, this.stepEndTime - Date.now());
     this.stepEndTime = null;
     this.stopTicking();
@@ -452,6 +486,12 @@ export class CircuitSessionView extends ItemView {
           : "Last interval"
       );
     }
+    this.updateElapsed();
+  }
+
+  private updateElapsed(): void {
+    if (!this.elapsedEl || !this.session) return;
+    this.elapsedEl.setText(formatElapsed(getSessionElapsedMs(this.session)));
   }
 
   private triggerStepFeedback(kind: CircuitStep["kind"]): void {
@@ -504,6 +544,7 @@ export class CircuitSessionView extends ItemView {
 
     this.finished = true;
     this.stopTicking();
+    pauseSessionTimer(session);
     this.stepEndTime = null;
     this.pausedRemainingMs = null;
 

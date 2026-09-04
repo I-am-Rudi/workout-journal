@@ -170,9 +170,11 @@ export class ExerciseNoteModal extends Modal {
     // field has focus, and a Save button down there cannot be reached at all.
     const actions = pane.createDiv({ cls: "exercise-note-modal-actions" });
 
+    // No mod-cta: the accent weighting comes from the plugin's own button
+    // system in styles.css, so Obsidian's slab does not have to be fought.
     const saveBtn = actions.createEl("button", {
       text: "Save",
-      cls: "mod-cta exercise-note-modal-save",
+      cls: "exercise-note-modal-save",
     });
     const cancelBtn = actions.createEl("button", {
       text: "Cancel",

@@ -1042,20 +1042,42 @@
     padding-bottom: 4px;
     width: 100%;
     box-sizing: border-box;
-    background-color: var(--background-primary);
+    background-color: var(--modal-background);
 }
 
+/* Same graded pair as the session controls: save carries the softened accent,
+   cancel gets a red wash rather than a red slab. Boxes, not pills. */
 .exercise-note-modal .exercise-note-modal-save,
 .exercise-note-modal .exercise-note-modal-cancel {
+    min-height: var(--wj-touch);
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--wj-radius-control);
+    box-shadow: none;
     font-size: 13px;
+    font-weight: 600;
     line-height: 1.4;
     white-space: nowrap;
     max-width: 100%;
+    cursor: pointer;
 }
 
-.exercise-note-modal-cancel:hover {
-    background: var(--background-modifier-hover);
-    color: var(--text-normal);
+.exercise-note-modal .exercise-note-modal-save {
+    background: color-mix(in srgb, var(--interactive-accent) 88%, var(--background-primary));
+    color: var(--text-on-accent);
+}
+
+.exercise-note-modal .exercise-note-modal-save:hover {
+    background: var(--interactive-accent);
+}
+
+.exercise-note-modal .exercise-note-modal-cancel {
+    background: var(--wj-danger-soft);
+    color: var(--text-error);
+}
+
+.exercise-note-modal .exercise-note-modal-cancel:hover {
+    background: color-mix(in srgb, var(--text-error) 20%, transparent);
 }
 
 /* Set type badge button */

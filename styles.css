@@ -1023,14 +1023,26 @@
     line-height: 1.5;
 }
 
-.exercise-note-modal-footer {
+.exercise-note-modal-note {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Pinned to the top of the note pane: the keyboard owns the bottom of the
+   screen on mobile, so the actions have to live above the field. */
+.exercise-note-modal-actions {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     display: flex;
     justify-content: flex-end;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 12px;
+    margin-bottom: 10px;
+    padding-bottom: 4px;
     width: 100%;
     box-sizing: border-box;
+    background-color: var(--background-primary);
 }
 
 .exercise-note-modal .exercise-note-modal-save,

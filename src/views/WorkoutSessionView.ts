@@ -155,12 +155,26 @@ export class WorkoutSessionView extends ItemView {
           cls: "workout-session-exercise-name-btn",
           title: "View / edit exercise note",
         });
+        const notePath = exercise.exerciseFilePath;
         nameBtn.onclick = () => {
           new ExerciseNoteModal(
             this.app,
             this.plugin,
-            exercise.exerciseFilePath,
-            exercise.exerciseName
+            notePath,
+            exercise.exerciseName,
+            (notes) => {
+              // The session carries its own copy of the exercise note, taken
+              // when it was built, and the banner reads that copy — so a save
+              // has to write it back or the card keeps showing the old text.
+              // Every card for the same note, in case it appears twice.
+              session.exercises
+                .filter((other) => other.exerciseFilePath === notePath)
+                .forEach((other) => {
+                  other.exerciseNotes = notes || undefined;
+                });
+              this.plugin.persistActiveSession();
+              this.render();
+            }
           ).open();
         };
       } else {

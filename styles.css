@@ -1948,7 +1948,16 @@
   border-bottom: none;
 }
 
-.wj-catalog-browse-label {
+.wj-catalog-browse-row.is-selected {
+  background-color: var(--wj-accent-soft);
+}
+
+.wj-catalog-browse-row.is-disabled .wj-catalog-browse-item {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.wj-catalog-browse-item {
   display: flex;
   align-items: flex-start;
   gap: var(--size-4-2);

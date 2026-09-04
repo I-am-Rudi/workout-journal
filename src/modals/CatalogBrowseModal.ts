@@ -3,6 +3,7 @@ import WorkoutTrackerPlugin from "../plugin";
 import { CatalogExercise } from "../utils/catalogService";
 import { toTitleCase } from "../utils/titleCase";
 import { ExerciseDefinition } from "../types";
+import { createNote, markPluginModal, renderHeader } from "../utils/uiKit";
 
 /** Keeps the list responsive; filters narrow it long before this bites. */
 const MAX_ROWS = 300;
@@ -41,12 +42,11 @@ export class CatalogBrowseModal extends Modal {
   async onOpen(): Promise<void> {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.addClass("wj-catalog-browse-modal");
+    markPluginModal(contentEl, "wj-catalog-browse-modal");
 
-    new Setting(contentEl).setName("Exercise catalog").setHeading();
-    contentEl.createEl("p", {
-      text: `${this.plugin.catalogService.size} exercises. Pick the ones you want — only those become notes in your vault.`,
-      cls: "setting-item-description",
+    renderHeader(contentEl, {
+      title: "Exercise catalog",
+      subtitle: `${this.plugin.catalogService.size} exercises — only the ones you pick become notes`,
     });
 
     this.existing = await this.plugin.catalogImportService.existingBySourceId();
@@ -78,7 +78,7 @@ export class CatalogBrowseModal extends Modal {
       });
     });
 
-    this.countEl = contentEl.createEl("p", { cls: "setting-item-description" });
+    this.countEl = createNote(contentEl, "");
     this.listEl = contentEl.createDiv({ cls: "wj-catalog-browse-list" });
 
     new Setting(contentEl)

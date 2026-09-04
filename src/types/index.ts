@@ -110,6 +110,8 @@ export interface Workout {
   notes?: string;
   sourceRoutineId?: string;
   sourcePlanId?: string;
+  /** Set when the workout was read back from a note, so views can link to it. */
+  filePath?: string;
 }
 
 export type WorkoutTrackerNoteType =

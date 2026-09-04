@@ -14,6 +14,7 @@ import {
   pauseSessionTimer,
   resumeSessionTimer,
 } from "../utils/sessionTimerUtils";
+import { createEmptyState } from "../utils/uiKit";
 
 export const WORKOUT_SESSION_VIEW_TYPE = "workout-tracker-session-view";
 
@@ -107,7 +108,10 @@ export class WorkoutSessionView extends ItemView {
     contentEl.addClass("workout-session-view");
 
     if (!this.session) {
-      contentEl.createEl("p", { text: "No active workout session." });
+      createEmptyState(contentEl, {
+        title: "No active workout",
+        body: "Start one from the workout journal ribbon icon.",
+      });
       return;
     }
     const session = this.session;

@@ -6,6 +6,8 @@ import {
   WorkoutPlanRoutineEntry,
 } from "../types";
 import { WorkoutStatsModal } from "./WorkoutStatsModal";
+import { ExerciseLibraryModal } from "./ExerciseLibraryModal";
+import { WorkoutHistoryModal } from "./WorkoutHistoryModal";
 import { RoutineBuilderModal } from "../settings/RoutineBuilderModal";
 import { PlanBuilderModal } from "../settings/PlanBuilderModal";
 import {
@@ -14,6 +16,7 @@ import {
   hasSessionTimer,
   isSessionTimerRunning,
 } from "../utils/sessionTimerUtils";
+import { createButton, createEmptyState } from "../utils/uiKit";
 
 /**
  * The plugin's landing page: resume or start a workout, then the library —
@@ -41,10 +44,6 @@ export class WorkoutHomeModal extends Modal {
     titles.createDiv({
       text: "Start a session or open your library",
       cls: "workout-home-subtitle",
-    });
-    this.createIconButton(header, "bar-chart", "Statistics", () => {
-      this.close();
-      new WorkoutStatsModal(this.app, this.plugin).open();
     });
 
     this.bodyEl = contentEl.createDiv({ cls: "workout-home-body" });
@@ -139,23 +138,60 @@ export class WorkoutHomeModal extends Modal {
       this.close();
       void this.plugin.startQuickLogSession(true);
     };
+
+    this.renderQuickLinks(section);
+  }
+
+  /**
+   * The three places the dashboard leads to besides a workout: the exercise
+   * library, the log of past workouts, and the numbers over all of them.
+   */
+  private renderQuickLinks(container: HTMLElement): void {
+    const links = container.createDiv({ cls: "workout-home-links" });
+
+    createButton(links, {
+      label: "Exercises",
+      variant: "secondary",
+      icon: "dumbbell",
+      onClick: () =>
+        new ExerciseLibraryModal(this.app, this.plugin, () => this.close()).open(),
+    });
+    createButton(links, {
+      label: "History",
+      variant: "secondary",
+      icon: "history",
+      onClick: () =>
+        new WorkoutHistoryModal(this.app, this.plugin, () => this.close()).open(),
+    });
+    createButton(links, {
+      label: "Stats",
+      variant: "secondary",
+      icon: "bar-chart",
+      onClick: () => {
+        this.close();
+        new WorkoutStatsModal(this.app, this.plugin).open();
+      },
+    });
   }
 
   private renderEmptyLibrary(container: HTMLElement): void {
-    const empty = container.createDiv({ cls: "workout-home-empty-state" });
-    empty.createDiv({
-      text: "Your library is empty",
-      cls: "workout-home-empty-title",
-    });
-    empty.createDiv({
-      text: "Routines hold the exercises you repeat; plans group routines into a week.",
-      cls: "workout-home-empty",
+    const empty = createEmptyState(container, {
+      title: "Your library is empty",
+      body: "Routines hold the exercises you repeat; plans group routines into a week.",
     });
     const actions = empty.createDiv({ cls: "workout-home-empty-actions" });
-    const routineBtn = actions.createEl("button", { text: "New routine" });
-    routineBtn.onclick = () => this.openRoutineBuilder();
-    const planBtn = actions.createEl("button", { text: "New plan" });
-    planBtn.onclick = () => this.openPlanBuilder();
+    createButton(actions, {
+      label: "New routine",
+      variant: "secondary",
+      icon: "plus",
+      onClick: () => this.openRoutineBuilder(),
+    });
+    createButton(actions, {
+      label: "New plan",
+      variant: "quiet",
+      icon: "plus",
+      onClick: () => this.openPlanBuilder(),
+    });
   }
 
   // ── Plans ────────────────────────────────────────────────────────────────

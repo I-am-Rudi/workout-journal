@@ -11,6 +11,12 @@ import {
 import { CatalogExercise } from "../utils/catalogService";
 import { CatalogPickerModal } from "./CatalogPickerModal";
 import { toTitleCase } from "../utils/titleCase";
+import {
+  createActionBar,
+  createButton,
+  markPluginModal,
+  renderHeader,
+} from "../utils/uiKit";
 
 export class ExerciseDefinitionModal extends Modal {
   private plugin: WorkoutTrackerPlugin;
@@ -42,11 +48,19 @@ export class ExerciseDefinitionModal extends Modal {
   /** Set when the user picks a record this session; applied on save. */
   private pickedRecord: CatalogExercise | undefined;
 
-  constructor(app: App, plugin: WorkoutTrackerPlugin, onSave: () => void, existing?: ExerciseDefinition) {
+  constructor(
+    app: App,
+    plugin: WorkoutTrackerPlugin,
+    onSave: () => void,
+    existing?: ExerciseDefinition,
+    /** Prefills the name when creating, so "create X" flows land ready to save. */
+    initialName?: string
+  ) {
     super(app);
     this.plugin = plugin;
     this.existing = existing;
     this.onSave = onSave;
+    if (!existing && initialName) this.name = initialName;
     if (existing) {
       this.name = existing.name;
       this.type = existing.type;
@@ -74,7 +88,13 @@ export class ExerciseDefinitionModal extends Modal {
   private render() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: this.existing ? "Edit exercise" : "New exercise" });
+    markPluginModal(contentEl);
+    renderHeader(contentEl, {
+      title: this.existing ? "Edit exercise" : "New exercise",
+      subtitle: this.existing
+        ? "Changes are written back to the exercise note"
+        : "Saved as a note in your exercise library",
+    });
 
     new Setting(contentEl).setName("Name").addText((t) =>
       t.setValue(this.name).onChange((v) => { this.name = v.trim(); })
@@ -149,11 +169,17 @@ export class ExerciseDefinitionModal extends Modal {
       t.setValue(this.notes).onChange((v) => { this.notes = v; })
     );
 
-    new Setting(contentEl).addButton((btn) =>
-      btn.setButtonText("Save").setCta().onClick(() => { void this.save(); })
-    ).addButton((btn) =>
-      btn.setButtonText("Cancel").onClick(() => this.close())
-    );
+    const actions = createActionBar(contentEl);
+    createButton(actions, {
+      label: "Save exercise",
+      variant: "primary",
+      onClick: () => { void this.save(); },
+    });
+    createButton(actions, {
+      label: "Cancel",
+      variant: "quiet",
+      onClick: () => this.close(),
+    });
   }
 
   /**

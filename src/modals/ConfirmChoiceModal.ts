@@ -1,4 +1,5 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Modal } from "obsidian";
+import { createActionBar, createButton, createNote, markPluginModal, renderHeader } from "../utils/uiKit";
 
 /**
  * A yes/no prompt with configurable wording, resolved as a promise.
@@ -50,20 +51,22 @@ export class ConfirmChoiceModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
+    markPluginModal(contentEl);
 
-    new Setting(contentEl).setName(this.title).setHeading();
-    contentEl.createEl("p", { text: this.message });
+    renderHeader(contentEl, { title: this.title });
+    createNote(contentEl, this.message);
 
-    new Setting(contentEl)
-      .addButton((btn) =>
-        btn
-          .setButtonText(this.confirmLabel)
-          .setCta()
-          .onClick(() => this.settle(true))
-      )
-      .addButton((btn) =>
-        btn.setButtonText(this.cancelLabel).onClick(() => this.settle(false))
-      );
+    const actions = createActionBar(contentEl);
+    createButton(actions, {
+      label: this.confirmLabel,
+      variant: "primary",
+      onClick: () => this.settle(true),
+    });
+    createButton(actions, {
+      label: this.cancelLabel,
+      variant: "quiet",
+      onClick: () => this.settle(false),
+    });
   }
 
   private settle(confirmed: boolean): void {

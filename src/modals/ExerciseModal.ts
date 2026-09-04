@@ -1,6 +1,15 @@
 import { App, Modal, Notice, Setting } from "obsidian";
-import { Exercise } from "../types";
+import { Exercise, ExerciseSet } from "../types";
 import WorkoutTrackerPlugin from "../plugin";
+import {
+  createActionBar,
+  createButton,
+  createHint,
+  createIconButton,
+  createSectionLabel,
+  markPluginModal,
+  renderHeader,
+} from "../utils/uiKit";
 
 export class ExerciseModal extends Modal {
   plugin: WorkoutTrackerPlugin;
@@ -29,9 +38,10 @@ export class ExerciseModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
+    markPluginModal(contentEl);
 
-    contentEl.createEl("h2", {
-      text: this.isEditing ? "Edit exercise" : "Add exercise",
+    renderHeader(contentEl, {
+      title: this.isEditing ? "Edit exercise" : "Add exercise",
     });
 
     // Exercise name with autocomplete from templates
@@ -55,128 +65,138 @@ export class ExerciseModal extends Modal {
       });
     });
 
-    // Load from template button
-    new Setting(contentEl).addButton((btn) =>
-      btn.setButtonText("Load from template").onClick(() => {
-        void (async () => {
-          const template = this.plugin.settings.exerciseTemplates.find(
-            (t) => t.name === this.exercise.name
-          );
-          if (!template?.defaultSets) {
-            return;
-          }
+    new Setting(contentEl)
+      .setName("Template defaults")
+      .setDesc("Fill the sets from a matching exercise template.")
+      .addButton((btn) =>
+        btn.setButtonText("Load from template").onClick(() => {
+          void (async () => {
+            const template = this.plugin.settings.exerciseTemplates.find(
+              (t) => t.name === this.exercise.name
+            );
+            if (!template?.defaultSets) {
+              new Notice("No template matches that exercise name.");
+              return;
+            }
 
-          const definitions = await this.plugin.definitionService.loadExerciseDefinitions();
-          const definition = definitions.find((def) => def.name === template.name);
-          const reps = definition?.lastPerformedReps ?? template.defaultReps;
-          const weight = definition?.lastPerformedWeight ?? template.defaultWeight;
-          for (let i = 0; i < template.defaultSets; i++) {
-            this.exercise.sets.push({
-              reps,
-              weight,
-              duration: template.defaultDuration,
-            });
-          }
-          this.renderSets(setsContainer);
-        })();
-      })
-    );
+            const definitions = await this.plugin.definitionService.loadExerciseDefinitions();
+            const definition = definitions.find((def) => def.name === template.name);
+            const reps = definition?.lastPerformedReps ?? template.defaultReps;
+            const weight = definition?.lastPerformedWeight ?? template.defaultWeight;
+            for (let i = 0; i < template.defaultSets; i++) {
+              this.exercise.sets.push({
+                reps,
+                weight,
+                duration: template.defaultDuration,
+              });
+            }
+            this.renderSets(setsContainer);
+          })();
+        })
+      );
 
-    // Sets section
-    const setsContainer = contentEl.createDiv();
+    createSectionLabel(contentEl, "Sets");
+    const setsContainer = contentEl.createDiv({ cls: "wj-set-list" });
     this.renderSets(setsContainer);
 
-    // Add set button
-    new Setting(contentEl).addButton((btn) =>
-      btn.setButtonText("Add set").onClick(() => {
-        this.exercise.sets.push({});
-        this.renderSets(setsContainer);
-      })
-    );
-
-    // Notes
     new Setting(contentEl).setName("Notes").addTextArea((text) =>
       text
-        .setPlaceholder("Exercise notes...")
+        .setPlaceholder("Exercise notes…")
         .setValue(this.exercise.notes || "")
         .onChange((value) => {
           this.exercise.notes = value;
         })
     );
 
-    // Submit button
-    new Setting(contentEl).addButton((btn) =>
-      btn
-        .setButtonText(this.isEditing ? "Update exercise" : "Add exercise")
-        .setCta()
-        .onClick(() => {
-          if (this.exercise.name) {
-            this.onSubmit(this.exercise);
-            this.close();
-          } else {
-            new Notice("Please enter an exercise name");
-          }
-        })
-    );
+    const actions = createActionBar(contentEl);
+    createButton(actions, {
+      label: this.isEditing ? "Update exercise" : "Add exercise",
+      variant: "primary",
+      onClick: () => {
+        if (!this.exercise.name) {
+          new Notice("Please enter an exercise name");
+          return;
+        }
+        this.onSubmit(this.exercise);
+        this.close();
+      },
+    });
+    createButton(actions, {
+      label: "Cancel",
+      variant: "quiet",
+      onClick: () => this.close(),
+    });
   }
 
   renderSets(container: HTMLElement) {
     container.empty();
+
     if (this.exercise.sets.length === 0) {
-      container.createEl("p", { text: "No sets added yet." });
-      return;
+      createHint(container, "No sets yet.");
     }
 
-    container.createEl("h4", { text: "Sets:" });
-
     this.exercise.sets.forEach((set, index) => {
-      const setContainer = container.createDiv({
-        cls: "workout-set-container",
+      const row = container.createDiv({ cls: "wj-set-row" });
+      row.createDiv({ text: `Set ${index + 1}`, cls: "wj-set-index" });
+
+      const fields = row.createDiv({ cls: "wj-set-fields" });
+      this.createField(fields, "Reps", "12", set.reps, (value) => {
+        set.reps = value !== undefined ? Math.round(value) : undefined;
       });
-      setContainer.createEl("h5", { text: `Set ${index + 1}` });
-
-      // Reps
-      new Setting(setContainer).setName("Reps").addText((text) =>
-        text
-          .setPlaceholder("12")
-          .setValue(set.reps?.toString() || "")
-          .onChange((value) => {
-            set.reps = value ? parseInt(value) : undefined;
-          })
+      this.createField(
+        fields,
+        this.plugin.settings.weightUnit,
+        "60",
+        set.weight,
+        (value) => {
+          set.weight = value;
+        }
       );
+      this.createField(fields, "Min", "30", set.duration, (value) => {
+        set.duration = value;
+      });
 
-      // Weight
-      new Setting(setContainer)
-        .setName(`Weight (${this.plugin.settings.weightUnit})`)
-        .addText((text) =>
-        text
-          .setPlaceholder("135")
-          .setValue(set.weight?.toString() || "")
-          .onChange((value) => {
-            set.weight = value ? parseFloat(value) : undefined;
-          })
+      createIconButton(
+        row,
+        "x",
+        `Remove set ${index + 1}`,
+        () => {
+          this.exercise.sets.splice(index, 1);
+          this.renderSets(container);
+        },
+        { danger: true }
       );
+    });
 
-      // Duration
-      new Setting(setContainer).setName("Duration (minutes)").addText((text) =>
-        text
-          .setPlaceholder("30")
-          .setValue(set.duration?.toString() || "")
-          .onChange((value) => {
-            set.duration = value ? parseFloat(value) : undefined;
-          })
-      );
+    createButton(container, {
+      label: "Add set",
+      variant: "ghost",
+      onClick: () => {
+        const previous: ExerciseSet | undefined =
+          this.exercise.sets[this.exercise.sets.length - 1];
+        this.exercise.sets.push(previous ? { ...previous } : {});
+        this.renderSets(container);
+      },
+    });
+  }
 
-      // Remove set button
-      new Setting(setContainer).addButton((btn) =>
-        btn
-          .setButtonText("Remove set")
-          .setWarning()
-          .onClick(() => {
-            this.exercise.sets.splice(index, 1);
-            this.renderSets(container);
-          })
-      );
+  /** One labelled numeric cell of a set row. */
+  private createField(
+    parent: HTMLElement,
+    label: string,
+    placeholder: string,
+    value: number | undefined,
+    onChange: (value: number | undefined) => void
+  ): void {
+    const field = parent.createDiv({ cls: "wj-set-field" });
+    field.createDiv({ text: label, cls: "wj-set-field-label" });
+    const input = field.createEl("input", { type: "number" });
+    input.placeholder = placeholder;
+    input.setAttr("aria-label", label);
+    if (value !== undefined) input.value = String(value);
+    input.addEventListener("input", () => {
+      const parsed = parseFloat(input.value);
+      onChange(input.value && !Number.isNaN(parsed) ? parsed : undefined);
     });
   }
 

@@ -1,6 +1,14 @@
-import { App, Modal, Setting } from 'obsidian';
+import { App, Modal } from 'obsidian';
 import { Workout, Exercise, WorkoutTemplate } from '../types';
 import WorkoutTrackerPlugin from '../plugin';
+import {
+	createButton,
+	createEmptyState,
+	createList,
+	createRow,
+	markPluginModal,
+	renderHeader,
+} from '../utils/uiKit';
 
 export class QuickWorkoutModal extends Modal {
 	plugin: WorkoutTrackerPlugin;
@@ -14,18 +22,35 @@ export class QuickWorkoutModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 
-		contentEl.createEl("h2", { text: "Quick workout log" });
-		contentEl.createEl("p", { text: "Select a workout template to quickly log:" });
+		markPluginModal(contentEl);
+		renderHeader(contentEl, {
+			title: "Quick workout log",
+			subtitle: "Log a whole workout from one of your templates",
+		});
 
-		this.plugin.settings.workoutTemplates.forEach(template => {
-			new Setting(contentEl)
-				.setName(template.name)
-				.setDesc(`Exercises: ${template.exercises.join(', ')} | Duration: ~${template.estimatedDuration} min`)
-				.addButton(btn => btn
-					.setButtonText('Use template')
-					.onClick(() => {
-						void this.createWorkoutFromTemplate(template);
-					}));
+		const templates = this.plugin.settings.workoutTemplates;
+		if (!templates.length) {
+			createEmptyState(contentEl, {
+				title: "No workout templates yet",
+				body: "Add one in the plugin settings to log it in a single tap.",
+			});
+			return;
+		}
+
+		const list = createList(contentEl);
+		templates.forEach(template => {
+			const { actions } = createRow(list, {
+				title: template.name,
+				meta: template.exercises.join(', ') || "No exercises",
+				chips: [{ text: `~${template.estimatedDuration} min` }],
+			});
+			createButton(actions, {
+				label: 'Log it',
+				variant: 'secondary',
+				onClick: () => {
+					void this.createWorkoutFromTemplate(template);
+				},
+			});
 		});
 	}
 

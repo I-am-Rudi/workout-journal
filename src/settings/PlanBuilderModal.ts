@@ -2,6 +2,17 @@ import { App, Modal, Notice, Setting } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
 import { RoutineDefinition, WorkoutPlanDefinition, WorkoutPlanRoutineEntry } from "../types";
 import { createIdFromName } from "../utils/idUtils";
+import {
+  createActionBar,
+  createButton,
+  createHint,
+  createIconButton,
+  createList,
+  createRow,
+  createSectionLabel,
+  markPluginModal,
+  renderHeader,
+} from "../utils/uiKit";
 
 export class PlanBuilderModal extends Modal {
   plugin: WorkoutTrackerPlugin;
@@ -34,7 +45,11 @@ export class PlanBuilderModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
 
-    contentEl.createEl("h2", { text: this.existingPlan ? "Edit workout plan" : "Create workout plan" });
+    markPluginModal(contentEl);
+    renderHeader(contentEl, {
+      title: this.existingPlan ? "Edit workout plan" : "Create workout plan",
+      subtitle: "A plan groups routines into a training program",
+    });
 
     new Setting(contentEl)
       .setName("Plan name")
@@ -44,7 +59,7 @@ export class PlanBuilderModal extends Modal {
         })
       );
 
-    contentEl.createEl("h3", { text: "Routines" });
+    createSectionLabel(contentEl, "Routines");
 
     const entriesContainer = contentEl.createDiv();
     this.renderEntries(entriesContainer);
@@ -85,14 +100,19 @@ export class PlanBuilderModal extends Modal {
       );
     }
 
-    new Setting(contentEl).addButton((btn) =>
-      btn
-        .setButtonText(this.existingPlan ? "Update plan" : "Save plan")
-        .setCta()
-        .onClick(() => {
-          void this.savePlan();
-        })
-    );
+    const actions = createActionBar(contentEl);
+    createButton(actions, {
+      label: this.existingPlan ? "Update plan" : "Save plan",
+      variant: "primary",
+      onClick: () => {
+        void this.savePlan();
+      },
+    });
+    createButton(actions, {
+      label: "Cancel",
+      variant: "quiet",
+      onClick: () => this.close(),
+    });
   }
 
   onClose() {
@@ -134,34 +154,39 @@ export class PlanBuilderModal extends Modal {
     container.empty();
 
     if (this.selectedEntries.length === 0) {
-      container.createEl("p", {
-        text: "No routines added yet.",
-        cls: "setting-item-description",
-      });
+      createHint(container, "No routines added yet.");
       return;
     }
 
+    const list = createList(container);
     this.selectedEntries.forEach((entry, index) => {
-      const row = new Setting(container)
-        .setName(entry.routineName)
-        .addText((text) =>
-          text
-            .setPlaceholder("Day (e.g. Monday)")
-            .setValue(entry.day ?? "")
-            .onChange((value) => {
-              this.selectedEntries[index].day = value;
-            })
-        )
-        .addButton((btn) =>
-          btn
-            .setButtonText("Remove")
-            .setWarning()
-            .onClick(() => {
-              this.selectedEntries.splice(index, 1);
-              this.renderEntries(container);
-            })
-        );
-      row.setDesc("Optional day label");
+      const { row, actions } = createRow(list, {
+        title: entry.routineName,
+        meta: "Optional day label",
+      });
+      row.addClass("wj-row-editable");
+
+      const dayInput = actions.createEl("input", {
+        type: "text",
+        cls: "wj-inline-input wj-inline-input-wide",
+      });
+      dayInput.placeholder = "Day";
+      dayInput.value = entry.day ?? "";
+      dayInput.setAttr("aria-label", `${entry.routineName} day label`);
+      dayInput.addEventListener("input", () => {
+        this.selectedEntries[index].day = dayInput.value;
+      });
+
+      createIconButton(
+        actions,
+        "x",
+        "Remove routine",
+        () => {
+          this.selectedEntries.splice(index, 1);
+          this.renderEntries(container);
+        },
+        { danger: true }
+      );
     });
   }
 }

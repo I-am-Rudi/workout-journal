@@ -62,6 +62,9 @@ Pretty much what you expect:
 - Reenter an unfinished workout
 - Routines organized in Plans that act as folders
 - Add new Plans and routines, or edit existing ones
+- Browse your exercise library — search it, pull new exercises in from the
+  catalog, or create your own, and tap one to open its note
+- Page back through every workout you have logged, and tap one to open its note
 - See your workout statistics
 
 <p align="center">

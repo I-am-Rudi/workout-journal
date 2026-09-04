@@ -1,4 +1,4 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Modal } from "obsidian";
 import { WorkoutFileService } from "../utils/workoutFileService";
 import {
   WorkoutStatisticsService,
@@ -11,11 +11,27 @@ import {
   renderLineChart,
   FREQUENCY_UNIT,
 } from "../utils/chartRenderer";
+import {
+  createEmptyState,
+  createHint,
+  createIconButton,
+  createList,
+  createRow,
+  createSection,
+  createStatGrid,
+  createStatTile,
+  markPluginModal,
+  renderHeader,
+} from "../utils/uiKit";
+
+/** Months of history the charts look back over. */
+const CHART_MONTHS = 12;
 
 export class WorkoutStatsModal extends Modal {
   plugin: WorkoutTrackerPlugin;
   fileService: WorkoutFileService;
   statisticsService: WorkoutStatisticsService;
+  private bodyEl: HTMLElement | null = null;
 
   constructor(app: App, plugin: WorkoutTrackerPlugin) {
     super(app);
@@ -28,208 +44,207 @@ export class WorkoutStatsModal extends Modal {
   }
 
   onOpen() {
-    void this._onOpen();
-  }
-
-  private async _onOpen(): Promise<void> {
     const { contentEl } = this;
     contentEl.empty();
+    markPluginModal(contentEl, "wj-stats-modal");
 
-    contentEl.createEl("h2", { text: "Workout statistics" });
+    const headerActions = renderHeader(contentEl, {
+      title: "Statistics",
+      subtitle: "Everything logged so far, at a glance",
+    });
+    createIconButton(headerActions, "refresh-cw", "Refresh", () => {
+      void this.load();
+    });
 
-    // Show loading message
-    const loadingEl = contentEl.createDiv({ text: "Loading statistics..." });
+    this.bodyEl = contentEl.createDiv({ cls: "wj-stats-body" });
+    void this.load();
+  }
+
+  private async load(): Promise<void> {
+    const body = this.bodyEl;
+    if (!body) return;
+    body.empty();
+    createHint(body, "Loading statistics…");
 
     try {
       const workouts = await this.fileService.loadAllWorkouts();
       const stats = this.statisticsService.calculateStatistics(workouts);
-      loadingEl.remove();
-      this.renderStatistics(contentEl, stats);
+      body.empty();
+      this.renderStatistics(body, stats);
     } catch (error) {
-      loadingEl.setText(`Error loading statistics: ${error instanceof Error ? error.message : String(error)}`);
+      body.empty();
+      createEmptyState(body, {
+        title: "Could not read your workouts",
+        body: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
   private renderStatistics(container: HTMLElement, stats: WorkoutStatistics) {
-    // Overview Stats
-    const overviewSection = container.createDiv();
-    overviewSection.createEl("h3", { text: "Overview" });
+    if (stats.totalWorkouts === 0) {
+      createEmptyState(container, {
+        title: "Nothing logged yet",
+        body: "Finish a workout and your numbers show up here.",
+      });
+      return;
+    }
 
-    new Setting(overviewSection)
-      .setName("Total workouts")
-      .setDesc(stats.totalWorkouts.toString());
+    const weightUnit = this.plugin.settings.weightUnit;
 
-    new Setting(overviewSection)
-      .setName("Total exercises")
-      .setDesc(stats.totalExercises.toString());
-
-    new Setting(overviewSection)
-      .setName("Total sets")
-      .setDesc(stats.totalSets.toString());
-
-    new Setting(overviewSection)
-      .setName("Total volume")
-      .setDesc(
-        `${stats.totalVolume.toLocaleString()} ${this.plugin.settings.weightUnit}`
-      );
-
-    new Setting(overviewSection)
-      .setName("Average workout duration")
-      .setDesc(`${stats.averageWorkoutDuration.toFixed(1)} minutes`);
-
-    new Setting(overviewSection)
-      .setName("Current streak")
-      .setDesc(
-        `${stats.workoutStreak} day${stats.workoutStreak !== 1 ? "s" : ""}`
-      );
-
-    new Setting(overviewSection)
-      .setName("Last workout")
-      .setDesc(stats.lastWorkoutDate || "No workouts yet");
-
-    // Monthly Workouts Chart
-    const monthlyCounts = this.statisticsService.getMonthlyWorkoutCounts(
-      Object.values(stats.workoutsByDate).flat()
+    // ── Overview tiles ──────────────────────────────────────────────────
+    const overview = createSection(container, "Overview");
+    const grid = createStatGrid(overview);
+    createStatTile(grid, "Workouts", stats.totalWorkouts.toLocaleString());
+    createStatTile(
+      grid,
+      "Streak",
+      String(stats.workoutStreak),
+      `day${stats.workoutStreak === 1 ? "" : "s"}`
     );
-    const sortedMonths = Object.keys(monthlyCounts).sort().slice(-12);
+    createStatTile(grid, "Sets", stats.totalSets.toLocaleString());
+    createStatTile(grid, "Exercises", stats.totalExercises.toLocaleString());
+    createStatTile(
+      grid,
+      "Volume",
+      stats.totalVolume.toLocaleString(),
+      weightUnit
+    );
+    createStatTile(
+      grid,
+      "Avg. length",
+      stats.averageWorkoutDuration.toFixed(0),
+      "min"
+    );
+    createStatTile(grid, "Last workout", stats.lastWorkoutDate || "—");
+
+    const allWorkouts = Object.values(stats.workoutsByDate).flat();
+
+    // ── Monthly workouts ────────────────────────────────────────────────
+    const monthlyCounts =
+      this.statisticsService.getMonthlyWorkoutCounts(allWorkouts);
+    const sortedMonths = Object.keys(monthlyCounts).sort().slice(-CHART_MONTHS);
 
     if (sortedMonths.length > 0) {
-      const monthlySection = container.createDiv({ cls: "wt-chart-section" });
-      monthlySection.createEl("h3", { text: "Monthly workouts" });
-      const chartContainer = monthlySection.createDiv({
-        cls: "wt-chart-container",
-      });
+      const section = createSection(container, "Workouts per month");
+      const chart = section.createDiv({ cls: "wt-chart-container" });
       renderBarChart(
-        chartContainer,
-        sortedMonths.map((m) => {
-          // Format "YYYY-MM" → "Mon 'YY" for compact labels
-          const [year, month] = m.split("-");
-          const date = new Date(Number(year), Number(month) - 1, 1);
-          return date.toLocaleDateString(undefined, {
-            month: "short",
-            year: "2-digit",
-          });
-        }),
-        sortedMonths.map((m) => monthlyCounts[m]),
+        chart,
+        sortedMonths.map((month) => this.formatMonth(month)),
+        sortedMonths.map((month) => monthlyCounts[month]),
         { yLabel: "Workouts" }
       );
     }
 
-    // Monthly Volume Line Chart
+    // ── Monthly volume ──────────────────────────────────────────────────
     const monthlyVolume: Record<string, number> = {};
-    Object.values(stats.workoutsByDate)
-      .flat()
-      .forEach((workout) => {
-        const month = workout.date.substring(0, 7);
-        workout.exercises.forEach((ex) => {
-          ex.sets.forEach((set) => {
-            if (set.weight && set.reps) {
-              monthlyVolume[month] =
-                (monthlyVolume[month] || 0) + set.weight * set.reps;
-            }
-          });
+    allWorkouts.forEach((workout) => {
+      const month = workout.date.substring(0, 7);
+      workout.exercises.forEach((exercise) => {
+        exercise.sets.forEach((set) => {
+          if (set.weight && set.reps) {
+            monthlyVolume[month] =
+              (monthlyVolume[month] || 0) + set.weight * set.reps;
+          }
         });
       });
+    });
 
-    const volumeMonths = Object.keys(monthlyVolume).sort().slice(-12);
+    const volumeMonths = Object.keys(monthlyVolume).sort().slice(-CHART_MONTHS);
     if (volumeMonths.length >= 2) {
-      const volumeSection = container.createDiv({ cls: "wt-chart-section" });
-      volumeSection.createEl("h3", { text: "Monthly volume" });
-      const chartContainer = volumeSection.createDiv({
-        cls: "wt-chart-container",
-      });
+      const section = createSection(container, "Volume per month");
+      const chart = section.createDiv({ cls: "wt-chart-container" });
       renderLineChart(
-        chartContainer,
-        volumeMonths.map((m) => {
-          const [year, month] = m.split("-");
-          const date = new Date(Number(year), Number(month) - 1, 1);
-          return date.toLocaleDateString(undefined, {
-            month: "short",
-            year: "2-digit",
-          });
-        }),
-        volumeMonths.map((m) => monthlyVolume[m]),
-        {
-          yLabel: this.plugin.settings.weightUnit,
-          unit: this.plugin.settings.weightUnit,
-        }
+        chart,
+        volumeMonths.map((month) => this.formatMonth(month)),
+        volumeMonths.map((month) => monthlyVolume[month]),
+        { yLabel: weightUnit, unit: weightUnit }
       );
     }
 
-    // Exercise Frequency Chart
+    // ── Exercise frequency ──────────────────────────────────────────────
     if (Object.keys(stats.exerciseFrequency).length > 0) {
-      const frequencySection = container.createDiv({ cls: "wt-chart-section" });
-      frequencySection.createEl("h3", { text: "Exercise frequency" });
-
+      const section = createSection(container, "Most trained");
       const sortedExercises = Object.entries(stats.exerciseFrequency)
         .sort(([, a], [, b]) => b - a)
         .slice(0, 10);
-
-      const chartContainer = frequencySection.createDiv({
-        cls: "wt-chart-container",
-      });
+      const chart = section.createDiv({ cls: "wt-chart-container" });
       renderHorizontalBarChart(
-        chartContainer,
+        chart,
         sortedExercises.map(([name]) => name),
         sortedExercises.map(([, count]) => count),
         { unit: FREQUENCY_UNIT }
       );
     }
 
-    // Personal Records
-    if (Object.keys(stats.personalRecords).length > 0) {
-      const prSection = container.createDiv();
-      prSection.createEl("h3", { text: "Personal records" });
-
-      Object.entries(stats.personalRecords).forEach(([exercise, record]) => {
-        new Setting(prSection)
-          .setName(exercise)
-          .setDesc(
-            `${record.weight} ${this.plugin.settings.weightUnit} × ${record.reps} reps (${record.date})`
-          );
-      });
-    }
-
-    // Recent Activity
-    const recentSection = container.createDiv();
-    recentSection.createEl("h3", { text: "Recent activity" });
-
-    const recentDates = Object.keys(stats.workoutsByDate).sort().slice(-7); // Last 7 days with workouts
-
-    if (recentDates.length > 0) {
-      recentDates.forEach((date) => {
-        const workouts = stats.workoutsByDate[date];
-        new Setting(recentSection)
-          .setName(date)
-          .setDesc(
-            `${workouts.length} workout${
-              workouts.length !== 1 ? "s" : ""
-            }: ${workouts.map((w) => w.name).join(", ")}`
-          );
-      });
-    } else {
-      recentSection.createEl("p", { text: "No recent workouts found." });
-    }
-
-    // Refresh button
-    new Setting(container).addButton((btn) =>
-      btn.setButtonText("Refresh statistics").onClick(async () => {
-        container.empty();
-        container.createEl("h2", { text: "Workout statistics" });
-        const loadingEl = container.createDiv({
-          text: "Loading statistics...",
+    // ── Personal records ────────────────────────────────────────────────
+    const records = Object.entries(stats.personalRecords);
+    if (records.length > 0) {
+      const section = createSection(container, "Personal records");
+      const list = createList(section);
+      records
+        .sort(([a], [b]) => a.localeCompare(b))
+        .forEach(([exercise, record]) => {
+          createRow(list, {
+            title: exercise,
+            meta: record.date,
+            chips: [
+              {
+                text: `${record.weight} ${weightUnit} × ${record.reps}`,
+                accent: true,
+              },
+            ],
+          });
         });
+    }
 
-        try {
-          const workouts = await this.fileService.loadAllWorkouts();
-          const newStats = this.statisticsService.calculateStatistics(workouts);
-          loadingEl.remove();
-          this.renderStatistics(container, newStats);
-        } catch (error) {
-          loadingEl.setText(`Error loading statistics: ${error instanceof Error ? error.message : String(error)}`);
+    // ── Recent activity ─────────────────────────────────────────────────
+    const section = createSection(container, "Recent activity");
+    const recentDates = Object.keys(stats.workoutsByDate).sort().slice(-7).reverse();
+
+    if (recentDates.length === 0) {
+      createHint(section, "No recent workouts.");
+      return;
+    }
+
+    const list = createList(section);
+    for (const date of recentDates) {
+      for (const workout of stats.workoutsByDate[date]) {
+        const setCount = workout.exercises.reduce(
+          (total, exercise) => total + exercise.sets.length,
+          0
+        );
+        const { actions } = createRow(list, {
+          title: workout.name,
+          meta: `${date} · ${workout.exercises.length} exercise${
+            workout.exercises.length === 1 ? "" : "s"
+          } · ${setCount} set${setCount === 1 ? "" : "s"}`,
+          onClick: workout.filePath
+            ? () => this.openNote(workout.filePath)
+            : undefined,
+        });
+        if (workout.filePath) {
+          createIconButton(actions, "file-text", "Open note", () =>
+            this.openNote(workout.filePath)
+          );
         }
-      })
-    );
+      }
+    }
+  }
+
+  private openNote(path: string | undefined): void {
+    if (!path) return;
+    this.close();
+    void this.app.workspace.openLinkText(path, "", false);
+  }
+
+  /** "YYYY-MM" → "Mon 'YY", so the axis labels stay narrow. */
+  private formatMonth(month: string): string {
+    const [year, monthPart] = month.split("-");
+    const date = new Date(Number(year), Number(monthPart) - 1, 1);
+    return date.toLocaleDateString(undefined, {
+      month: "short",
+      year: "2-digit",
+    });
   }
 
   onClose() {

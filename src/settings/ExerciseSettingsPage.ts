@@ -1,17 +1,36 @@
-import { App, Notice, Setting, TFile } from "obsidian";
+import { App, Notice, TFile } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
 import { ExerciseDefinitionModal } from "../modals/ExerciseDefinitionModal";
 import { CatalogBrowseModal } from "../modals/CatalogBrowseModal";
+import { EXERCISE_TYPE_LABELS } from "../utils/exerciseTypeUtils";
+import {
+  createActionBar,
+  createBackButton,
+  createButton,
+  createEmptyState,
+  createHint,
+  createIconButton,
+  createList,
+  createRow,
+  createSectionLabel,
+  renderHeader,
+} from "../utils/uiKit";
 
 export class ExerciseSettingsPage {
-  async render(containerEl: HTMLElement, app: App, plugin: WorkoutTrackerPlugin, onBack: () => void): Promise<void> {
+  async render(
+    containerEl: HTMLElement,
+    app: App,
+    plugin: WorkoutTrackerPlugin,
+    onBack: () => void
+  ): Promise<void> {
     containerEl.empty();
+    containerEl.addClass("wj-settings");
 
-    new Setting(containerEl).addButton((btn) =>
-      btn.setButtonText("← Back to general settings").onClick(() => onBack())
-    );
-
-    containerEl.createEl("h2", { text: "Exercise library" });
+    createBackButton(containerEl, "Back to settings", () => onBack());
+    renderHeader(containerEl, {
+      title: "Exercise library",
+      subtitle: "Every exercise is a note in your vault",
+    });
 
     const listContainer = containerEl.createDiv();
 
@@ -19,9 +38,9 @@ export class ExerciseSettingsPage {
       listContainer.empty();
 
       if (!plugin.settings.exerciseLibraryFolder) {
-        listContainer.createEl("p", {
-          text: "Configure the exercise library folder in general settings first.",
-          cls: "setting-item-description",
+        createEmptyState(listContainer, {
+          title: "No library folder set",
+          body: "Pick an exercise library folder in the general settings first.",
         });
         return;
       }
@@ -30,38 +49,62 @@ export class ExerciseSettingsPage {
       exercises.sort((a, b) => a.name.localeCompare(b.name));
 
       if (exercises.length === 0) {
-        listContainer.createEl("p", {
-          text: "No exercise notes found. Add your first exercise below.",
-          cls: "setting-item-description",
+        createEmptyState(listContainer, {
+          title: "No exercises yet",
+          body: "Add one by hand, or pick from the bundled catalog.",
         });
         return;
       }
 
+      createSectionLabel(
+        listContainer,
+        `${exercises.length} exercise${exercises.length === 1 ? "" : "s"}`
+      );
+      const list = createList(listContainer);
+
       for (const exercise of exercises) {
-        const desc = [
-          exercise.type,
+        const meta = [
           exercise.muscleGroups.length ? exercise.muscleGroups.join(", ") : null,
-          exercise.defaultSets !== undefined ? `${exercise.defaultSets} × ${exercise.defaultReps ?? "?"}` : null,
-        ].filter(Boolean).join(" · ");
+          exercise.defaultSets !== undefined
+            ? `${exercise.defaultSets} × ${exercise.defaultReps ?? "?"}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
 
-        const setting = new Setting(listContainer).setName(exercise.name).setDesc(desc);
+        const { actions } = createRow(list, {
+          title: exercise.name,
+          meta,
+          chips: [{ text: EXERCISE_TYPE_LABELS[exercise.type] }],
+          onClick: exercise.filePath
+            ? () => {
+                void app.workspace.openLinkText(exercise.filePath!, "", false);
+              }
+            : undefined,
+        });
 
-        setting.addButton((btn) =>
-          btn.setButtonText("Edit").onClick(() => {
-            new ExerciseDefinitionModal(app, plugin, () => { void renderList(); }, exercise).open();
-          })
-        );
+        createIconButton(actions, "pencil", "Edit exercise", () => {
+          new ExerciseDefinitionModal(
+            app,
+            plugin,
+            () => {
+              void renderList();
+            },
+            exercise
+          ).open();
+        });
 
         if (exercise.filePath) {
-          setting.addButton((btn) =>
-            btn.setButtonText("Open note").onClick(() => {
-              void app.workspace.openLinkText(exercise.filePath!, "", false);
-            })
-          );
+          createIconButton(actions, "file-text", "Open note", () => {
+            void app.workspace.openLinkText(exercise.filePath!, "", false);
+          });
         }
 
-        setting.addButton((btn) =>
-          btn.setButtonText("Delete").setWarning().onClick(() => {
+        createIconButton(
+          actions,
+          "trash-2",
+          "Delete exercise",
+          () => {
             void (async () => {
               if (!exercise.filePath) {
                 new Notice("Cannot delete: file path unknown.");
@@ -76,23 +119,36 @@ export class ExerciseSettingsPage {
               new Notice(`Deleted: ${exercise.name}`);
               await renderList();
             })();
-          })
+          },
+          { danger: true }
         );
       }
+
+      createHint(listContainer, "Tap a row to open its note.");
     };
 
     await renderList();
 
-    new Setting(containerEl)
-      .addButton((btn) =>
-        btn.setButtonText("Add exercise").setCta().onClick(() => {
-          new ExerciseDefinitionModal(app, plugin, () => { void renderList(); }).open();
-        })
-      )
-      .addButton((btn) =>
-        btn.setButtonText("Browse catalog").onClick(() => {
-          new CatalogBrowseModal(app, plugin, () => { void renderList(); }).open();
-        })
-      );
+    const actions = createActionBar(containerEl);
+    createButton(actions, {
+      label: "Add exercise",
+      variant: "primary",
+      icon: "plus",
+      onClick: () => {
+        new ExerciseDefinitionModal(app, plugin, () => {
+          void renderList();
+        }).open();
+      },
+    });
+    createButton(actions, {
+      label: "Browse catalog",
+      variant: "secondary",
+      icon: "library",
+      onClick: () => {
+        new CatalogBrowseModal(app, plugin, () => {
+          void renderList();
+        }).open();
+      },
+    });
   }
 }

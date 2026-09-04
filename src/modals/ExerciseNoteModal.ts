@@ -2,6 +2,14 @@ import { App, Component, MarkdownRenderer, Modal, Notice, Platform, TFile } from
 import WorkoutTrackerPlugin from "../plugin";
 import { ExerciseSet, Workout } from "../types";
 import { parseExerciseNote, writeNotesSection } from "../utils/exerciseNoteSections";
+import {
+  createButton,
+  createHint,
+  createTabs,
+  markPluginModal,
+  renderHeader,
+  setActiveTab,
+} from "../utils/uiKit";
 
 /** How many past workouts the history tab lists. */
 const HISTORY_LIMIT = 12;
@@ -41,25 +49,19 @@ export class ExerciseNoteModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.addClass("exercise-note-modal");
+    markPluginModal(contentEl, "exercise-note-modal");
 
-    contentEl.createEl("h3", {
-      text: this.exerciseName,
-      cls: "exercise-note-modal-title",
-    });
+    renderHeader(contentEl, { title: this.exerciseName });
 
-    const tabs = contentEl.createDiv({ cls: "exercise-note-modal-tabs" });
-    const addTab = (tab: NoteTab, label: string) => {
-      const btn = tabs.createEl("button", {
-        text: label,
-        cls: "exercise-note-modal-tab",
-      });
-      btn.onclick = () => this.setTab(tab);
-      this.tabButtons.set(tab, btn);
-    };
-    addTab("note", "Note");
-    addTab("history", "History");
-    addTab("description", "Description");
+    this.tabButtons = createTabs<NoteTab>(
+      contentEl,
+      [
+        { id: "note", label: "Note" },
+        { id: "history", label: "History" },
+        { id: "description", label: "Description" },
+      ],
+      (tab) => this.setTab(tab)
+    );
 
     this.bodyEl = contentEl.createDiv({ cls: "exercise-note-modal-body" });
     // MarkdownRenderer needs a Component for its lifecycle and Modal is not one,
@@ -70,9 +72,7 @@ export class ExerciseNoteModal extends Modal {
 
   private setTab(tab: NoteTab): void {
     this.tab = tab;
-    this.tabButtons.forEach((btn, key) => {
-      btn.toggleClass("exercise-note-modal-tab-active", key === tab);
-    });
+    setActiveTab(this.tabButtons, tab);
     if (tab === "note") {
       void this.renderNote();
     } else if (tab === "description") {
@@ -117,18 +117,17 @@ export class ExerciseNoteModal extends Modal {
 
     if (!sections.description) {
       const empty = container.createDiv({ cls: "exercise-note-modal-empty" });
-      empty.createEl("p", {
-        text: "No description yet.",
-        cls: "setting-item-description",
+      createHint(empty, "No description yet.");
+      createButton(empty, {
+        label: "Find this exercise in the catalog",
+        variant: "secondary",
+        icon: "search",
+        block: true,
+        onClick: () => {
+          this.close();
+          void this.plugin.attachCatalogDescription(file);
+        },
       });
-      const button = empty.createEl("button", {
-        text: "Find this exercise in the catalog",
-        cls: "mod-cta",
-      });
-      button.onclick = () => {
-        this.close();
-        void this.plugin.attachCatalogDescription(file);
-      };
       return;
     }
 
@@ -227,10 +226,7 @@ export class ExerciseNoteModal extends Modal {
     container.empty();
 
     if (this.history === null) {
-      container.createEl("p", {
-        text: "Loading history…",
-        cls: "exercise-note-modal-loading",
-      });
+      createHint(container, "Loading history…");
       const file = this.app.vault.getAbstractFileByPath(this.filePath);
       if (file instanceof TFile) {
         const def = await this.plugin.definitionService.loadExerciseFromFile(file);
@@ -252,10 +248,7 @@ export class ExerciseNoteModal extends Modal {
     }
 
     if (!this.history.length) {
-      container.createEl("p", {
-        text: "No logged performances yet.",
-        cls: "exercise-note-modal-empty",
-      });
+      createHint(container, "No logged performances yet.");
       return;
     }
 

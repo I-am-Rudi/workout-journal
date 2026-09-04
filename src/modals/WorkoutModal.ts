@@ -2,6 +2,17 @@ import { App, Modal, Notice, Setting } from "obsidian";
 import { Workout } from "../types";
 import WorkoutTrackerPlugin from "../plugin";
 import { ExerciseModal } from "./ExerciseModal";
+import {
+  createActionBar,
+  createButton,
+  createHint,
+  createIconButton,
+  createList,
+  createRow,
+  createSectionLabel,
+  markPluginModal,
+  renderHeader,
+} from "../utils/uiKit";
 
 export class WorkoutModal extends Modal {
   plugin: WorkoutTrackerPlugin;
@@ -21,55 +32,41 @@ export class WorkoutModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
+    markPluginModal(contentEl);
 
-    contentEl.createEl("h2", { text: "Log new workout" });
+    renderHeader(contentEl, {
+      title: "Log a workout",
+      subtitle: "Write a finished workout straight to a note",
+    });
 
-    // Workout name input
     new Setting(contentEl)
       .setName("Workout name")
-      .setDesc("Enter a name for this workout")
       .addText((text) =>
         text
-          .setPlaceholder("e.g., morning run, push day")
+          .setPlaceholder("e.g. morning run, push day")
           .setValue(this.workout.name)
           .onChange((value) => {
             this.workout.name = value;
           })
       );
 
-    // Date input
-    new Setting(contentEl)
-      .setName("Date")
-      .setDesc("Workout date")
-      .addText((text) =>
-        text.setValue(this.workout.date).onChange((value) => {
-          this.workout.date = value;
-        })
-      );
+    new Setting(contentEl).setName("Date").addText((text) => {
+      text.inputEl.type = "date";
+      text.setValue(this.workout.date).onChange((value) => {
+        this.workout.date = value;
+      });
+    });
 
-    // Exercise section
+    createSectionLabel(contentEl, "Exercises");
     const exerciseContainer = contentEl.createDiv();
     this.renderExercises(exerciseContainer);
 
-    // Add exercise button
-    new Setting(contentEl).addButton((btn) =>
-      btn
-        .setButtonText("Add exercise")
-        .setCta()
-        .onClick(() => {
-          new ExerciseModal(this.app, this.plugin, (exercise) => {
-            this.workout.exercises.push(exercise);
-            this.renderExercises(exerciseContainer);
-          }).open();
-        })
-    );
-
-    // Save button
-    new Setting(contentEl).addButton((btn) =>
-      btn
-        .setButtonText("Save workout")
-        .setCta()
-        .onClick(async () => {
+    const actions = createActionBar(contentEl);
+    createButton(actions, {
+      label: "Save workout",
+      variant: "primary",
+      onClick: () => {
+        void (async () => {
           if (this.workout.name && this.workout.exercises.length > 0) {
             await this.plugin.createWorkoutFile(this.workout);
             this.close();
@@ -78,35 +75,62 @@ export class WorkoutModal extends Modal {
               "Please enter a workout name and add at least one exercise"
             );
           }
-        })
-    );
+        })();
+      },
+    });
+    createButton(actions, {
+      label: "Cancel",
+      variant: "quiet",
+      onClick: () => this.close(),
+    });
   }
 
   renderExercises(container: HTMLElement) {
     container.empty();
+
     if (this.workout.exercises.length === 0) {
-      container.createEl("p", { text: "No exercises added yet." });
-      return;
+      createHint(container, "No exercises yet.");
+    } else {
+      const list = createList(container);
+      this.workout.exercises.forEach((exercise, index) => {
+        const { actions } = createRow(list, {
+          title: exercise.name,
+          meta: `${exercise.sets.length} set${exercise.sets.length === 1 ? "" : "s"}`,
+        });
+        createIconButton(actions, "pencil", "Edit exercise", () => {
+          new ExerciseModal(
+            this.app,
+            this.plugin,
+            (updated) => {
+              this.workout.exercises[index] = updated;
+              this.renderExercises(container);
+            },
+            exercise
+          ).open();
+        });
+        createIconButton(
+          actions,
+          "trash-2",
+          "Remove exercise",
+          () => {
+            this.workout.exercises.splice(index, 1);
+            this.renderExercises(container);
+          },
+          { danger: true }
+        );
+      });
     }
 
-    const exerciseList = container.createDiv();
-    exerciseList.createEl("h3", { text: "Exercises:" });
-
-    this.workout.exercises.forEach((exercise, index) => {
-      const exerciseEl = exerciseList.createDiv({
-        cls: "workout-exercise-item",
-      });
-      exerciseEl.createEl("strong", { text: exercise.name });
-      exerciseEl.createSpan({ text: ` (${exercise.sets.length} sets)` });
-
-      const removeBtn = exerciseEl.createEl("button", {
-        text: "Remove",
-        cls: "mod-warning",
-      });
-      removeBtn.onclick = () => {
-        this.workout.exercises.splice(index, 1);
-        this.renderExercises(container);
-      };
+    createButton(container, {
+      label: "Add exercise",
+      variant: "ghost",
+      icon: "plus",
+      onClick: () => {
+        new ExerciseModal(this.app, this.plugin, (exercise) => {
+          this.workout.exercises.push(exercise);
+          this.renderExercises(container);
+        }).open();
+      },
     });
   }
 

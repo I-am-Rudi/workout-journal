@@ -1,9 +1,10 @@
-import { ItemView, Notice, setIcon, Setting, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, setIcon, WorkspaceLeaf } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
 import { CircuitStep, WorkoutSession } from "../types";
 import { ConfirmModal } from "../modals/ConfirmModal";
 import { FeedbackPlayer } from "../utils/feedbackUtils";
 import { formatSeconds } from "../utils/exerciseTypeUtils";
+import { createActionBar, createButton, createEmptyState } from "../utils/uiKit";
 import {
   formatElapsed,
   getSessionElapsedMs,
@@ -152,7 +153,10 @@ export class CircuitSessionView extends ItemView {
 
     const session = this.session;
     if (!session) {
-      contentEl.createEl("p", { text: "No active circuit session." });
+      createEmptyState(contentEl, {
+        title: "No active circuit",
+        body: "Start a circuit routine from the workout journal ribbon icon.",
+      });
       return;
     }
 
@@ -179,14 +183,18 @@ export class CircuitSessionView extends ItemView {
     }
 
     if (!this.steps.length) {
-      contentEl.createEl("p", {
-        text: "This circuit has no timed exercises. Give each exercise a duration first.",
+      createEmptyState(contentEl, {
+        title: "Nothing to time",
+        body: "This circuit has no timed exercises. Give each exercise a duration first.",
       });
-      new Setting(contentEl).addButton((btn) =>
-        btn.setButtonText("Cancel session").setWarning().onClick(() => {
+      const actions = createActionBar(contentEl);
+      createButton(actions, {
+        label: "Cancel session",
+        variant: "danger",
+        onClick: () => {
           void this.plugin.cancelActiveSession();
-        })
-      );
+        },
+      });
       return;
     }
 

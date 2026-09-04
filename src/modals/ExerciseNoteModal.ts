@@ -12,6 +12,8 @@ export class ExerciseNoteModal extends Modal {
   private plugin: WorkoutTrackerPlugin;
   private filePath: string;
   private exerciseName: string;
+  /** Told the saved note text, so a caller holding a copy can refresh it. */
+  private onSave?: (notes: string) => void;
   private tab: NoteTab = "note";
   private bodyEl: HTMLElement | null = null;
   private tabButtons: Map<NoteTab, HTMLElement> = new Map();
@@ -26,12 +28,14 @@ export class ExerciseNoteModal extends Modal {
     app: App,
     plugin: WorkoutTrackerPlugin,
     filePath: string,
-    exerciseName: string
+    exerciseName: string,
+    onSave?: (notes: string) => void
   ) {
     super(app);
     this.plugin = plugin;
     this.filePath = filePath;
     this.exerciseName = exerciseName;
+    this.onSave = onSave;
   }
 
   onOpen() {
@@ -181,6 +185,7 @@ export class ExerciseNoteModal extends Modal {
         writeNotesSection(current, textarea.value)
       );
       new Notice(`Saved note for "${this.exerciseName}".`);
+      this.onSave?.(textarea.value.trim());
       this.close();
     };
 

@@ -1,4 +1,4 @@
-import { App, Component, MarkdownRenderer, Modal, Notice, TFile } from "obsidian";
+import { App, Component, MarkdownRenderer, Modal, Notice, Platform, TFile } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
 import { ExerciseSet, Workout } from "../types";
 import { parseExerciseNote, writeNotesSection } from "../utils/exerciseNoteSections";
@@ -161,23 +161,50 @@ export class ExerciseNoteModal extends Modal {
     const raw = await this.app.vault.read(file);
     const sections = parseExerciseNote(raw);
 
-    const textarea = container.createEl("textarea", {
-      cls: "exercise-note-modal-textarea",
-    });
-    textarea.value = sections.notes;
-    // Focus and move cursor to end after rendering
-    window.requestAnimationFrame(() => {
-      if (this.tab !== "note") return;
-      textarea.focus();
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-    });
+    // A fresh wrapper per render, so the tap-to-dismiss listener below cannot
+    // stack up as the user moves between tabs.
+    const pane = container.createDiv({ cls: "exercise-note-modal-note" });
 
-    const footer = container.createDiv({ cls: "exercise-note-modal-footer" });
+    // The actions sit above the textarea, not under it: on a phone the
+    // on-screen keyboard covers the bottom of the modal for as long as the
+    // field has focus, and a Save button down there cannot be reached at all.
+    const actions = pane.createDiv({ cls: "exercise-note-modal-actions" });
 
-    const saveBtn = footer.createEl("button", {
+    const saveBtn = actions.createEl("button", {
       text: "Save",
       cls: "mod-cta exercise-note-modal-save",
     });
+    const cancelBtn = actions.createEl("button", {
+      text: "Cancel",
+      cls: "exercise-note-modal-cancel",
+    });
+
+    const textarea = pane.createEl("textarea", {
+      cls: "exercise-note-modal-textarea",
+    });
+    textarea.value = sections.notes;
+
+    // Desktop opens straight into the field; on mobile that would raise the
+    // keyboard before the user has said they want to type.
+    if (!Platform.isMobile) {
+      window.requestAnimationFrame(() => {
+        if (this.tab !== "note") return;
+        textarea.focus();
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      });
+    }
+
+    // Tapping anywhere off the field puts the keyboard away — mobile Obsidian
+    // offers no other way out while a textarea holds focus. The buttons are
+    // left out of it: they close the modal on their own, and dropping the
+    // keyboard mid-press would reflow the layout under the finger.
+    pane.addEventListener("pointerdown", (event) => {
+      const target = event.target;
+      if (target === textarea) return;
+      if (target instanceof HTMLElement && target.closest("button")) return;
+      textarea.blur();
+    });
+
     saveBtn.onclick = async () => {
       // Splices the ## Notes section only. Re-reading inside process() keeps a
       // description added elsewhere in the meantime intact.
@@ -189,10 +216,6 @@ export class ExerciseNoteModal extends Modal {
       this.close();
     };
 
-    const cancelBtn = footer.createEl("button", {
-      text: "Cancel",
-      cls: "exercise-note-modal-cancel",
-    });
     cancelBtn.onclick = () => this.close();
   }
 

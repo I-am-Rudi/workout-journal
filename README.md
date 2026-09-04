@@ -1,96 +1,136 @@
 # Workout Journal
 
-A full workout tracker that lives inside your Obsidian vault. It aims to feel
-like a dedicated fitness app while you are actually training — an interactive
-session view, rest timers, previous values filled in for you — but every single
-thing it creates is a plain markdown note that you own and can read, edit, query
-and take with you.
-
-The project originally started as a fork of the very nice [Obsidian Workout
-Tracker](https://github.com/wanabeunique/obsidian-workout-tracker) plugin. The
-feature set has grown enough since then that I wanted to share it as a separate
-plugin.
-
-So far the plugin is mostly self-tested and was specifically designed to be used
-in my own vault. But I hope it can be useful to others as well, and I welcome any
-feedback, bug reports, or contributions.
-
 <p align="center">
-  <img src="./assets/overview-first-look.gif" width="280" alt="A first look at Workout Journal: plans, routines and the exercise library">
+  <img src="./assets/overview.gif" width="280" alt="A first look at Workout Journal">
 </p>
 
-## Why this and not a fitness app
+A completely free workout tracking solution for Obsidian that stays integrated
+with your vault while providing a **full fitness-app like interface**. You get
+an active session view, edit windows for the different note types (exercises,
+routines, and workout plans), and an **app-like dashboard** to manage it all
+from. Still every element of it lives in your vault. Every part is represented
+in a markdown note, and thus can be integrated into your personal knowledge
+management system. **Everything is in plain text: You own your data.**
 
-- **Your data stays yours.** One markdown note per workout, plus a flat CSV of
-  every set you have ever done. Nothing is locked in a proprietary database, and
-  if you ever leave, you leave with everything.
-- **It talks to the rest of your vault.** Exercises, routines and plans are all
-  notes, so they link, they show up in graph view, and Dataview can query them.
-- **It still feels like an app when it matters.** During a session you are not
-  editing YAML — you are tapping through sets with a rest timer running.
+A big issue with fitness tracking is usually the first setup: setting up your
+exercise library, migrating your routines and history. This is why this plugin
+comes with an **exercise catalog of 1,324 exercises with instructions**. Don't worry
+only exercises you actually use will show up in your Vault, so no needless clutter! The second issue is solved for those coming from Strong, simply export your history from there and get it into your vault with the **"Import from Strong" feature** in settings. You can automatically get all exercises you have used in a completed workout and from these completed workouts you can also extract the full routine with the provided command.
 
-## Features
+(I know many people use Hevy now, hope I can add this soon. I heard the export is pretty similar too Strong.)
 
-### While you train
+## Team Plain-Text
 
-- 🏋️ **Active workout sessions** — a dedicated session view that mirrors a real
-  fitness app: tick off sets, add sets or exercises on the fly, drag to reorder,
-  jot notes without leaving the screen
-- ⏱️ **Rest timer** that survives a locked screen, with optional sound and
-  vibration feedback
-- ⏲️ **Workout clock** running in the session header — tap it to pause and resume,
-  and the elapsed time is logged with the finished workout
-- 🔁 **Previous values pre-filled** from your last performance, so you always know
-  what you did last time
-- ⭕ **Circuit routines** with a guided player that counts down each work and
-  pause window and walks you through the rounds
-- 📱 **Built for the gym** — the whole session flow is designed to work on mobile
+- **Your data stays yours:** One markdown note per workout, exercise, routine,
+and plan, plus a flat CSV of every set you have ever done. Nothing is locked in
+a proprietary database.
+- **It talks to the rest of your vault:** Exercises, routines and plans are all
+notes, so they link, they show up in graph view, and Dataview can query them.
+- **It still feels like an app when it matters:** During a session you are not
+editing YAML — you are tapping through sets with a rest timer running.
+
+A side note: Because everything is just markdown, you can have self-written
+scripts and even your agent of choice create and edit your Routines and Plans
+for you. Full automation without paying for an additional subscription!
+
+## Active Session View
+
+The active session view is mainly built for mobile. It has all the features you
+would want (I hope, if not feel free to open a feature request ;D):
+
+- Automatic fill of last performed stats.
+- Automatic rest timer
+- Session timer
+- Show exercise notes, history and description
+- Add routine specific notes to exercises
+- Add a note to the workout
+- Add new sets, exercises, switch them out or re-order via drag and drop
+- Change set type to Warmup, Myoreps or Drop Set
+- On finish you can overwrite with the changes you made or ignore and
+automatically finish unfinished sets
+
+If you come from a fitness app this should look and feel familiar:
+<p align="center">
+  <img src="./assets/active-session.gif" width="280" alt="An Active Session">
+</p>
+
+## Dashboard
+
+Pretty much what you expect:
+
+- Start an empty workout, or start a routine from your library
+- Reenter an unfinished workout
+- Routines organized in Plans that act as folders
+- Add new Plans and routines, or edit existing ones
+- See your workout statistics
+
+<p align="center">
+  <img src="./assets/dashboard.gif" width="280" alt="Dashboard">
+</p>
+
+## Exercises
+
+Built your Exercise Library quickly from the catalog of 1,324 exercises or get
+them from the Strong import. If both can't get you what you need, you can create
+your own in the exercise editor. You can also merge the description from the
+catalog into exercises you have created. There are many different types:
+strength (kg,reps), cardio (min,km), reps-only (reps), duration-only (s).
+
+<p align="center">
+  <img src="./assets/catalog.gif" width="280" alt="Importing from the exercise Catalog">
+</p>
+
+## Routines and Plans
+
+Both feature an editor, that can be accessed from the command palette or
+directly from a dashboard. Routines organize a collection of exercises with
+sets, and exercise-specific notes into a workout. Plans organize a collection of
+routines into a multi-day schedule (settings specific days of the week is optional). Due to the inherent nature of everything being a note that can just be referenced, routines can be assigned to multiple plans without duplicating them.
+
+Plan notes can be used to jot down notes about the your fitness plan related to
+it. Those notes wont show up in the interfaces the plugin provides.
 
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="./assets/active-session.gif" width="280" alt="Working through a session: ticking off sets, rest timer, adding exercises">
+      <img src="./assets/routine-editor.jpg" width="280" alt="Routine Editor">
       <br><sub><b>An active session</b> — sets, rest timer, notes</sub>
     </td>
     <td align="center" width="50%">
-      <img src="./assets/circuit-training.gif" width="280" alt="The circuit player counting down work and pause windows across rounds">
+      <img src="./assets/plan-editor.jpg" width="280" alt="Plan Editor">
       <br><sub><b>A circuit</b> — guided work and pause windows</sub>
     </td>
   </tr>
 </table>
 
-### Organising your training
+## Circuit Training
 
-- 📚 **Exercise library** with muscle groups, equipment, defaults and per-exercise
-  notes
-- 🧩 **Routines** you repeat, built from your exercises
-- 🗓️ **Workout plans** that group routines into a structured week or block
-- ✍️ **Editors for everything** — create and edit exercises, routines and plans
-  through a proper UI instead of hand-writing frontmatter
+For those who like to do circuit training, simply change the type of the routine
+in the interface, or alternatively set the boolean property in the YAML
+frontmatter of the routine note. If you start it in an active session it will
+automatically enter it in circuit mode. All of the exercises in the routine must be
+duration-only for that.
 
-### The exercise catalog
+This is what you are greeted with:
+<p align="center">
+  <img src="./assets/circuit.gif" width="280" alt="Circuit Training">
+</p>
 
-- 🔎 **1,324 exercises built in**, with descriptions and pictures, searchable by
-  name, equipment and muscle
-- 🎯 **Only what you actually use** — the catalog is not dumped into your vault.
-  Pick an exercise while adding it to a session and the note is created right
-  then, or browse and tick off a handful at a time
-- 🤝 **It never touches what you already have.** Imported notes are stamped as
-  coming from the catalog; your own exercises are invisible to the importer
-- 🩹 **Retrofit old notes** with the "Attach description from the exercise
-  catalog" command — search, press enter, and the description lands in the note
-  without touching anything you wrote
+## Configuration
 
-### History and analysis
+Settings → Community plugins → Workout Journal:
 
-- 📊 **Statistics** — personal records, streaks, volume, exercise frequency and
-  progression charts
-- 🕒 **Every workout as its own note**, with its duration and a readable table
-  underneath the frontmatter
-- 🗂️ **A performance CSV** alongside the notes, for when you want to do your own
-  analysis in a spreadsheet or a notebook
-- 🔄 **Import from the Strong app** — bring your whole history across, and let the
-  catalog fill in descriptions for the exercises it recognises
+- **Folders** for workouts, exercises, routines and plans
+- **Units** — kg or lb, km or mi
+- **Rest timer** default, plus sound and vibration feedback
+- **Exercise images** — link to them, or turn them off entirely
+- **Note templates** — extra frontmatter and body content merged into everything
+  the plugin creates, so it fits your existing vault conventions
+- **Library management** for exercises, routines and plans
+
+<p align="center">
+  <img src="./assets/settings.gif" width="280" alt="Overview of the Settings">
+</p>
 
 ## Installation
 
@@ -114,15 +154,16 @@ manually:
    `<your vault>/.obsidian/plugins/workout-journal/`
 5. Enable the plugin in Obsidian settings
 
-## Getting started
+### Getting started
 
 The fastest path from a fresh install to your first logged set:
 
 1. Open settings and point the plugin at the folders you want it to use
 2. Open the **exercise catalog** and import a handful of exercises you actually
    train — or skip this and add them as you go
-3. Build a **routine** from those exercises
-4. Tap the ribbon icon and start the routine
+3. Tap the ribbon icon
+4. Press "+" to build a **routine** from those exercises
+5. Press "start" to start the routine in an active session
 
 ### Interfaces
 
@@ -133,27 +174,7 @@ The fastest path from a fresh install to your first logged set:
 - **Settings** — manage your library, routines and plans, configure folders and
   units, and run imports
 
-## The exercise catalog
-
-Building an exercise library by hand is the most tedious part of starting a
-workout log, so the plugin ships with one: 1,324 exercises with instructions,
-target muscles, equipment and a picture each.
-
-The important part is that **it does not clutter your vault**. The catalog lives
-inside the plugin, not in your notes. Nothing becomes a note until you pick it.
-
-There are three ways in:
-
-- **While adding an exercise to a session** — search, and catalog results appear
-  below your own exercises. Pick one and the note is created and used
-  immediately.
-- **Browse catalog** in settings — filter by body part and equipment, tick the
-  ones you want, import them together.
-- **"Attach description from the exercise catalog"** — run this on an exercise
-  note you already have and pick the matching entry. Only the description is
-  written; the name, your notes and anything else you set are left alone.
-
-### How an exercise note is laid out
+## How an exercise note is laid out
 
 Everything the catalog adds goes under a `## Description` heading. Everything
 under `## Notes` is yours — the plugin writes there only when you edit it
@@ -165,6 +186,7 @@ wj-type: exercise
 wj-id: ds-0025
 wj-name: Barbell Bench Press
 wj-muscle-groups: [pectorals, triceps, deltoids]
+wj-exercise-type: strength
 wj-equipment: barbell
 wj-source: exercises-dataset
 wj-source-id: "0025"
@@ -173,7 +195,7 @@ wj-source-id: "0025"
 
 ## Description
 
-![](https://cdn.jsdelivr.net/gh/…/images/0025-EIeI8Vf.jpg)
+![](https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@7455efae41b330c265e7cd4b78dfa848e7ce5ebd/images/0025-EIeI8Vf.jpg)
 
 Lie flat on a bench with your feet planted…
 
@@ -187,7 +209,7 @@ Left shoulder twinges above 80 kg. Elbows tucked 45°.
 During a session, tapping an exercise name opens that note in three tabs —
 **Note**, **History** and **Description** — so you can check your form cues, see
 what you lifted last month, and scribble something down without leaving the
-workout.
+workout. Your notes also show up as a blue ribbon in session view.
 
 ### Pictures and network use
 
@@ -201,26 +223,6 @@ dataset's MIT licence, so the plugin links to them where they are already
 published rather than copying them into your vault. If you would rather not load
 anything from the network, set **Exercise images** to **No image** in settings and
 the plugin will only ever write text.
-
-## Importing from the Strong app
-
-Strong can export your history as a CSV. In settings, point the importer at it
-and the plugin will create one note per workout, preserving exercises, sets,
-reps, weights and notes, and add everything to the performance CSV.
-
-Optionally it also creates an exercise note for every unique exercise it finds,
-and fills those in from the catalog where it recognises the name.
-
-> [!tip]
-> Running `Create routine from current workout` on a workout you imported from
-> Strong is a quick way to turn your existing training into reusable routines.
-
-> [!note]
-> Strong writes exercise names like `Bench Press (Barbell)` where the catalog
-> writes `barbell bench press`, so roughly a third of them are matched
-> automatically. Your exercise names are always kept exactly as Strong wrote them
-> — renaming them would disconnect them from your logged history. For the rest,
-> open the exercise note and run **Attach description from the exercise catalog**.
 
 ## How your data is stored
 
@@ -263,42 +265,6 @@ Beautiful morning for a run
 Alongside the notes, every completed set is appended to a flat performance CSV.
 That is what drives the previous-values pre-fill, and it means you can pull your
 whole training history into a spreadsheet whenever you want.
-
-## Configuration
-
-Settings → Community plugins → Workout Journal:
-
-- **Folders** for workouts, exercises, routines and plans
-- **Units** — kg or lb, km or mi
-- **Rest timer** default, plus sound and vibration feedback
-- **Exercise images** — link to them, or turn them off entirely
-- **Note templates** — extra frontmatter and body content merged into everything
-  the plugin creates, so it fits your existing vault conventions
-- **Library management** for exercises, routines and plans
-
-<p align="center">
-  <img src="./assets/settings.gif" width="280" alt="The settings tab: folders, units, rest timer, exercise images and library management">
-</p>
-
-## Development
-
-```bash
-npm install
-npm run dev     # watch mode, no type-checking
-npm run build   # type-check + production bundle
-```
-
-The bundled exercise catalog is generated, not hand-written. To regenerate it
-from a fresh copy of the upstream dataset:
-
-```bash
-node scripts/build-catalog.mjs path/to/exercises.json
-```
-
-That writes `src/data/catalogIndex.ts` (the search index) and
-`src/data/catalogDescriptions.ts` (the instruction texts). Both are bundled into
-`main.js`, because Obsidian only downloads `main.js`, `manifest.json` and
-`styles.css` when installing a plugin.
 
 ## Credits and licence
 

@@ -46,6 +46,7 @@ export class WorkoutStatsModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
+    this.modalEl.addClass("wj-modal-narrow");
     markPluginModal(contentEl, "wj-stats-modal");
 
     const headerActions = renderHeader(contentEl, {

@@ -34,6 +34,7 @@ export class WorkoutHistoryModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
+    this.modalEl.addClass("wj-modal-narrow");
     markPluginModal(contentEl, "wj-history-modal");
 
     renderHeader(contentEl, {

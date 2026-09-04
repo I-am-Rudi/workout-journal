@@ -47,6 +47,7 @@ export class ExerciseLibraryModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
+    this.modalEl.addClass("wj-modal-narrow");
     markPluginModal(contentEl, "wj-library-modal");
 
     const headerActions = renderHeader(contentEl, {

@@ -16,7 +16,19 @@ import {
   hasSessionTimer,
   isSessionTimerRunning,
 } from "../utils/sessionTimerUtils";
-import { createButton, createEmptyState } from "../utils/uiKit";
+import {
+  createButton,
+  createEmptyActions,
+  createEmptyState,
+  createHint,
+  createIconButton,
+  createList,
+  createRow,
+  createSection,
+  createSectionHeader,
+  markPluginModal,
+  renderHeader,
+} from "../utils/uiKit";
 
 /**
  * The plugin's landing page: resume or start a workout, then the library —
@@ -35,22 +47,17 @@ export class WorkoutHomeModal extends Modal {
 
   onOpen(): void {
     const { contentEl, modalEl } = this;
-    modalEl.addClass("workout-home-modal");
+    modalEl.addClass("wj-modal-narrow");
     contentEl.empty();
+    markPluginModal(contentEl);
 
-    const header = contentEl.createDiv({ cls: "workout-home-header" });
-    const titles = header.createDiv({ cls: "workout-home-titles" });
-    titles.createDiv({ text: "Workout journal", cls: "workout-home-title" });
-    titles.createDiv({
-      text: "Start a session or open your library",
-      cls: "workout-home-subtitle",
+    renderHeader(contentEl, {
+      title: "Workout journal",
+      subtitle: "Start a session or open your library",
     });
 
     this.bodyEl = contentEl.createDiv({ cls: "workout-home-body" });
-    this.bodyEl.createDiv({
-      text: "Loading library…",
-      cls: "workout-home-empty",
-    });
+    createHint(this.bodyEl, "Loading library…");
 
     void this.refresh();
   }
@@ -119,25 +126,26 @@ export class WorkoutHomeModal extends Modal {
         text: `${exerciseCount} exercise${exerciseCount === 1 ? "" : "s"} · ${activeSession.date}${elapsed}`,
         cls: "workout-home-resume-meta",
       });
-      const resumeBtn = card.createEl("button", {
-        text: "Resume",
-        cls: "workout-home-resume-btn",
+      createButton(card, {
+        label: "Resume",
+        variant: "accent",
+        onClick: () => {
+          this.close();
+          void this.plugin.openActiveSessionView();
+        },
       });
-      resumeBtn.onclick = () => {
-        this.close();
-        void this.plugin.openActiveSessionView();
-      };
     }
 
-    const emptyBtn = section.createEl("button", {
-      cls: "workout-home-primary-btn",
+    createButton(section, {
+      label: "Start empty workout",
+      variant: "accent",
+      icon: "plus",
+      block: true,
+      onClick: () => {
+        this.close();
+        void this.plugin.startQuickLogSession(true);
+      },
     });
-    setIcon(emptyBtn.createSpan({ cls: "workout-home-btn-icon" }), "plus");
-    emptyBtn.createSpan({ text: "Start empty workout" });
-    emptyBtn.onclick = () => {
-      this.close();
-      void this.plugin.startQuickLogSession(true);
-    };
 
     this.renderQuickLinks(section);
   }
@@ -179,7 +187,7 @@ export class WorkoutHomeModal extends Modal {
       title: "Your library is empty",
       body: "Routines hold the exercises you repeat; plans group routines into a week.",
     });
-    const actions = empty.createDiv({ cls: "workout-home-empty-actions" });
+    const actions = createEmptyActions(empty);
     createButton(actions, {
       label: "New routine",
       variant: "secondary",
@@ -200,16 +208,13 @@ export class WorkoutHomeModal extends Modal {
     container: HTMLElement,
     routinesById: Map<string, RoutineDefinition>
   ): void {
-    const section = container.createDiv({ cls: "workout-home-section" });
+    const section = createSection(container);
     this.renderSectionHeader(section, "Plans", "New plan", () =>
       this.openPlanBuilder()
     );
 
     if (!this.plans.length) {
-      section.createDiv({
-        text: "No plans yet. A plan groups routines into a week.",
-        cls: "workout-home-empty",
-      });
+      createHint(section, "No plans yet. A plan groups routines into a week.");
       return;
     }
 
@@ -247,10 +252,7 @@ export class WorkoutHomeModal extends Modal {
 
     const body = card.createDiv({ cls: "workout-home-plan-body" });
     if (!plan.routines.length) {
-      body.createDiv({
-        text: "No routines in this plan yet.",
-        cls: "workout-home-empty",
-      });
+      createHint(body, "No routines in this plan yet.");
     } else {
       for (const entry of plan.routines) {
         this.renderRoutineRow(body, routinesById.get(entry.routineId), entry, plan);
@@ -290,7 +292,7 @@ export class WorkoutHomeModal extends Modal {
     container: HTMLElement,
     routines: RoutineDefinition[]
   ): void {
-    const section = container.createDiv({ cls: "workout-home-section" });
+    const section = createSection(container);
     this.renderSectionHeader(
       section,
       this.plans.length ? "Other routines" : "Routines",
@@ -299,14 +301,11 @@ export class WorkoutHomeModal extends Modal {
     );
 
     if (!routines.length) {
-      section.createDiv({
-        text: "Every routine belongs to a plan.",
-        cls: "workout-home-empty",
-      });
+      createHint(section, "Every routine belongs to a plan.");
       return;
     }
 
-    const list = section.createDiv({ cls: "workout-home-list" });
+    const list = createList(section);
     for (const routine of routines) {
       this.renderRoutineRow(list, routine);
     }
@@ -320,13 +319,7 @@ export class WorkoutHomeModal extends Modal {
     addTooltip: string,
     onAdd: () => void
   ): void {
-    const header = container.createDiv({ cls: "workout-home-section-header" });
-    const label = header.createDiv({
-      text: title,
-      cls: "workout-home-section-title",
-    });
-    label.setAttr("role", "heading");
-    label.setAttr("aria-level", "3");
+    const { header } = createSectionHeader(container, title);
     this.createIconButton(header, "plus", addTooltip, onAdd);
   }
 
@@ -336,24 +329,6 @@ export class WorkoutHomeModal extends Modal {
     entry?: WorkoutPlanRoutineEntry,
     plan?: WorkoutPlanDefinition
   ): void {
-    const row = container.createDiv({ cls: "workout-home-routine" });
-
-    const info = row.createDiv({ cls: "workout-home-routine-info" });
-    const nameRow = info.createDiv({ cls: "workout-home-routine-name-row" });
-    if (entry?.day) {
-      nameRow.createSpan({ text: entry.day, cls: "workout-home-chip" });
-    }
-    nameRow.createSpan({
-      text: routine?.name ?? entry?.routineName ?? "Missing routine",
-      cls: "workout-home-routine-name",
-    });
-    if (routine?.isCircle) {
-      nameRow.createSpan({
-        text: "Circuit",
-        cls: "workout-home-chip workout-home-chip-accent",
-      });
-    }
-
     const details: string[] = [];
     if (routine) {
       details.push(
@@ -365,39 +340,42 @@ export class WorkoutHomeModal extends Modal {
     } else {
       details.push("Routine note not found");
     }
-    info.createDiv({
-      text: details.join(" · "),
-      cls: "workout-home-routine-meta",
+
+    const { actions } = createRow(container, {
+      title: routine?.name ?? entry?.routineName ?? "Missing routine",
+      meta: details.join(" · "),
+      leadingChips: entry?.day ? [{ text: entry.day }] : undefined,
+      chips: routine?.isCircle ? [{ text: "Circuit", accent: true }] : undefined,
     });
 
-    const actions = row.createDiv({ cls: "workout-home-routine-actions" });
     if (routine) {
       this.createIconButton(actions, "pencil", "Edit routine", () =>
         this.openRoutineBuilder(undefined, routine)
       );
     }
-    const startBtn = actions.createEl("button", {
-      text: "Start",
-      cls: "workout-home-start-btn",
+    createButton(actions, {
+      label: "Start",
+      variant: "secondary",
+      disabled: !routine,
+      onClick: () => {
+        if (!routine) return;
+        this.close();
+        void this.plugin.startSessionFromRoutine(routine, true, plan);
+      },
     });
-    startBtn.disabled = !routine;
-    startBtn.onclick = () => {
-      if (!routine) return;
-      this.close();
-      void this.plugin.startSessionFromRoutine(routine, true, plan);
-    };
   }
 
+  /**
+   * The kit's icon button, with the click kept off the row behind it — plan
+   * headers and routine rows both have their own click targets.
+   */
   private createIconButton(
     container: HTMLElement,
     icon: string,
     tooltip: string,
     onClick: () => void
   ): HTMLButtonElement {
-    const btn = container.createEl("button", { cls: "workout-home-icon-btn" });
-    setIcon(btn, icon);
-    btn.setAttr("aria-label", tooltip);
-    btn.setAttr("title", tooltip);
+    const btn = createIconButton(container, icon, tooltip, onClick);
     btn.onclick = (event) => {
       event.stopPropagation();
       onClick();

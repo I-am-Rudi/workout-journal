@@ -10,8 +10,19 @@ import { setIcon, setTooltip } from "obsidian";
  * The matching CSS lives under "Shared surface kit" in styles.css.
  */
 
-/** Action weight, strongest first. Danger is a wash, never a red slab. */
-export type ButtonVariant = "primary" | "secondary" | "quiet" | "danger" | "ghost";
+/**
+ * Action weight, strongest first. `accent` is the full accent, for the one
+ * button on a page that is the reason to be there; `primary` is softened a
+ * touch so a modal's confirm stays calm beside its cancel. Danger is a wash,
+ * never a red slab.
+ */
+export type ButtonVariant =
+  | "accent"
+  | "primary"
+  | "secondary"
+  | "quiet"
+  | "danger"
+  | "ghost";
 
 export interface ButtonOptions {
   label: string;
@@ -27,6 +38,8 @@ export interface ButtonOptions {
 export interface RowOptions {
   title: string;
   meta?: string;
+  /** Short pill-shaped tags shown before the title, such as a day label. */
+  leadingChips?: Array<{ text: string; accent?: boolean }>;
   /** Short pill-shaped tags shown after the title. */
   chips?: Array<{ text: string; accent?: boolean }>;
   /** Dims the title — used for rows that point at something missing. */
@@ -81,6 +94,21 @@ export function createSectionLabel(parent: HTMLElement, text: string): HTMLEleme
   return parent.createDiv({ text, cls: "wj-section-label" });
 }
 
+/**
+ * A section label with an action on the far right. The label carries the
+ * heading role, so the structure is still readable to a screen reader.
+ */
+export function createSectionHeader(
+  parent: HTMLElement,
+  title: string
+): { header: HTMLElement; label: HTMLElement } {
+  const header = parent.createDiv({ cls: "wj-section-header" });
+  const label = header.createDiv({ text: title, cls: "wj-section-label" });
+  label.setAttr("role", "heading");
+  label.setAttr("aria-level", "3");
+  return { header, label };
+}
+
 export function createCard(parent: HTMLElement, extraClass?: string): HTMLElement {
   return parent.createDiv({
     cls: extraClass ? `wj-card ${extraClass}` : "wj-card",
@@ -98,13 +126,15 @@ export function createRow(parent: HTMLElement, options: RowOptions): RowParts {
 
   const info = row.createDiv({ cls: "wj-row-info" });
   const titleLine = info.createDiv({ cls: "wj-row-title-line" });
-  titleLine.createDiv({ text: options.title, cls: "wj-row-title" });
-  for (const chip of options.chips ?? []) {
+  const addChip = (chip: { text: string; accent?: boolean }) => {
     titleLine.createSpan({
       text: chip.text,
       cls: chip.accent ? "wj-chip wj-chip-accent" : "wj-chip",
     });
-  }
+  };
+  for (const chip of options.leadingChips ?? []) addChip(chip);
+  titleLine.createDiv({ text: options.title, cls: "wj-row-title" });
+  for (const chip of options.chips ?? []) addChip(chip);
   if (options.meta) {
     info.createDiv({ text: options.meta, cls: "wj-row-meta" });
   }
@@ -204,6 +234,11 @@ export function createEmptyState(
   empty.createDiv({ text: options.title, cls: "wj-empty-title" });
   if (options.body) empty.createDiv({ text: options.body, cls: "wj-empty-body" });
   return empty;
+}
+
+/** The button row under an empty state's message. */
+export function createEmptyActions(empty: HTMLElement): HTMLElement {
+  return empty.createDiv({ cls: "wj-empty-actions" });
 }
 
 /** One-line placeholder for a list that is merely empty. */

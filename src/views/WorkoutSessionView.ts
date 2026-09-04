@@ -519,7 +519,7 @@ export class WorkoutSessionView extends ItemView {
       if (!session.isCircle) {
         const addSetBtn = card.createEl("button", {
           text: "Add set",
-          cls: "workout-session-add-set",
+          cls: "wj-btn wj-btn-ghost",
         });
         addSetBtn.onclick = () => {
           const lastSet = exercise.sets[exercise.sets.length - 1];
@@ -542,7 +542,7 @@ export class WorkoutSessionView extends ItemView {
     const addExerciseBtn = contentEl.createEl("button", {
       cls: "workout-session-add-exercise",
     });
-    setIcon(addExerciseBtn.createSpan({ cls: "workout-session-btn-icon" }), "plus");
+    setIcon(addExerciseBtn.createSpan({ cls: "wj-btn-icon" }), "plus");
     addExerciseBtn.createSpan({ text: "Add exercise" });
     addExerciseBtn.onclick = () => {
       void (async () => {
@@ -559,7 +559,7 @@ export class WorkoutSessionView extends ItemView {
     const notesBlock = contentEl.createDiv({ cls: "workout-session-notes-block" });
     notesBlock.createDiv({
       text: session.routineEditMode ? "Routine notes" : "Workout notes",
-      cls: "workout-session-section-label",
+      cls: "wj-section-label",
     });
     const notesArea = notesBlock.createEl("textarea", {
       cls: "workout-session-workout-notes",
@@ -578,7 +578,7 @@ export class WorkoutSessionView extends ItemView {
     if (session.routineEditMode) {
       const saveBtn = actions.createEl("button", {
         text: "Save routine",
-        cls: "workout-session-action workout-session-action-primary",
+        cls: "wj-btn wj-btn-block wj-btn-primary",
       });
       saveBtn.onclick = () => {
         void this.plugin.saveRoutineFromSession();
@@ -586,7 +586,7 @@ export class WorkoutSessionView extends ItemView {
 
       const discardBtn = actions.createEl("button", {
         text: "Discard changes",
-        cls: "workout-session-action workout-session-action-danger",
+        cls: "wj-btn wj-btn-block wj-btn-danger",
       });
       discardBtn.onclick = () => {
         new ConfirmModal(
@@ -605,7 +605,7 @@ export class WorkoutSessionView extends ItemView {
 
     const finishBtn = actions.createEl("button", {
       text: "Finish workout",
-      cls: "workout-session-action workout-session-action-primary",
+      cls: "wj-btn wj-btn-block wj-btn-primary",
     });
     finishBtn.onclick = () => {
       this.plugin.finishActiveSessionFromView();
@@ -613,7 +613,7 @@ export class WorkoutSessionView extends ItemView {
 
     const cancelBtn = actions.createEl("button", {
       text: "Cancel session",
-      cls: "workout-session-action workout-session-action-danger",
+      cls: "wj-btn wj-btn-block wj-btn-danger",
     });
     cancelBtn.onclick = () => {
       new ConfirmModal(

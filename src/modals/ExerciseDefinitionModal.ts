@@ -125,6 +125,8 @@ export class ExerciseDefinitionModal extends Modal {
     const repsOnly = isRepsOnly(this.type);
     const durationOnly = isDurationOnly(this.type);
 
+    new Setting(contentEl).setName("Defaults").setHeading();
+
     new Setting(contentEl).setName("Default sets").addText((t) =>
       t.setPlaceholder("3").setValue(this.defaultSets !== undefined ? String(this.defaultSets) : "")
         .onChange((v) => { this.defaultSets = v ? parseInt(v) : undefined; })
@@ -165,9 +167,13 @@ export class ExerciseDefinitionModal extends Modal {
       );
     }
 
-    new Setting(contentEl).setName("Notes").addTextArea((t) =>
+    new Setting(contentEl).setName("Notes").setHeading();
+
+    const notesSetting = new Setting(contentEl).addTextArea((t) =>
       t.setValue(this.notes).onChange((v) => { this.notes = v; })
     );
+    // A free-text field wants the width of the row, not the control column.
+    notesSetting.settingEl.addClass("wj-setting-stacked");
 
     const actions = createActionBar(contentEl);
     createButton(actions, {

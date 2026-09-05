@@ -133,6 +133,8 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
           })
       );
 
+    new Setting(containerEl).setName("Tracking").setHeading();
+
     new Setting(containerEl)
       .setName("Enable exercise autocomplete")
       .setDesc("Show exercise suggestions when typing")
@@ -191,6 +193,8 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
           })
       );
 
+    new Setting(containerEl).setName("Units").setHeading();
+
     new Setting(containerEl)
       .setName("Weight unit")
       .setDesc("Global weight unit used across logging and stats")
@@ -218,6 +222,8 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    new Setting(containerEl).setName("Rest and feedback").setHeading();
 
     new Setting(containerEl)
       .setName("Default rest timer")

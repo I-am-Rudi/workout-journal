@@ -134,11 +134,13 @@ export class RoutineBuilderModal extends Modal {
       );
     }
 
-    new Setting(contentEl).setName("Notes").addTextArea((text) =>
+    const notesSetting = new Setting(contentEl).setName("Notes").addTextArea((text) =>
       text.setValue(this.notes).onChange((value) => {
         this.notes = value;
       })
     );
+    // A free-text field wants the width of the row, not the control column.
+    notesSetting.settingEl.addClass("wj-setting-stacked");
 
     new Setting(contentEl).setName("Exercises").setHeading();
 

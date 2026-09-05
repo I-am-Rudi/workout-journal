@@ -31,7 +31,11 @@
     /* Fields are the one place the flat language keeps an edge: without it an
        input is just a slightly different rectangle and nothing says "type
        here". The hairline is an inset shadow, so focus never reflows the row. */
-    --wj-field-bg: var(--background-modifier-form-field, var(--background-primary));
+    /* Obsidian's own form-field colour is just --background-primary, i.e. the
+       colour the modal already sits on, so a field fades into the page. Step
+       toward the text instead: that is the high-contrast direction in every
+       theme, light or dark, without branching on which one is active. */
+    --wj-field-bg: color-mix(in srgb, var(--background-primary) 90%, var(--text-normal));
     --wj-field-ring: inset 0 0 0 1px
         var(--background-modifier-border-hover, var(--background-modifier-border));
     --wj-field-ring-hover: inset 0 0 0 1px
@@ -514,17 +518,41 @@
 
 /* Obsidian form rows inside plugin surfaces ─────────────────
    Forms are still built with `Setting`, so the row itself is restyled rather
-   than rebuilt: a filled box with a sunken control, no separator lines. */
+   than rebuilt. The row carries no fill of its own: a form line is not a list
+   item, and filling every one of them turns a settings page into a wall of
+   identical grey bands with no hierarchy. Leaving them flat also means the
+   field is the only filled box on the line, which is what makes it read as
+   the thing you can type into. */
 
 .wj-modal .setting-item,
 .wj-settings .setting-item {
     align-items: center;
     gap: var(--wj-gap);
-    padding: 10px 12px;
-    margin-bottom: var(--wj-gap-tight);
+    padding: 10px 0;
+    margin-bottom: 0;
     border-top: none;
-    border-radius: var(--wj-radius-control);
-    background: var(--wj-surface);
+    background: transparent;
+}
+
+/* A textarea needs the width of the row, not the sliver a control column
+   leaves it. The caller opts in per row, since only a few fields want it. */
+.wj-modal .setting-item.wj-setting-stacked,
+.wj-settings .setting-item.wj-setting-stacked {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--wj-gap-tight);
+}
+
+.wj-modal .setting-item.wj-setting-stacked .setting-item-control,
+.wj-settings .setting-item.wj-setting-stacked .setting-item-control {
+    justify-content: stretch;
+}
+
+.wj-modal .setting-item.wj-setting-stacked textarea,
+.wj-settings .setting-item.wj-setting-stacked textarea {
+    width: 100%;
+    min-height: 90px;
+    resize: vertical;
 }
 
 .wj-modal .setting-item-name,

@@ -1,9 +1,18 @@
 /* ── Design tokens ──────────────────────────────────────────
    One flat visual language for every plugin surface: filled cards on the
    secondary background, no decorative borders, generous radii, and small
-   uppercase section labels. Every colour comes from the user's theme. */
+   uppercase section labels. Every colour comes from the user's theme.
 
-:root {
+   Declared on `body`, NOT on `:root`. Obsidian puts `.theme-dark` /
+   `.theme-light` on the body element, so `--background-primary`,
+   `--text-normal` and `--interactive-accent` are declared there too. A token
+   defined on `:root` — which is `html`, body's parent — cannot see them: the
+   `var()` resolves to nothing, the whole token becomes the guaranteed-invalid
+   value, and every `background: var(--wj-…)` built on it silently computes to
+   transparent. Popout windows get their own body with the same classes, so
+   this scope follows the plugin into them. */
+
+body {
     --wj-radius-card: 12px;
     --wj-radius-control: 8px;
     --wj-radius-pill: 999px;
@@ -604,7 +613,7 @@
 .wj-settings .setting-item select {
     border: none;
     border-radius: var(--wj-radius-control);
-    background: var(--wj-field-bg);
+    background-color: var(--wj-field-bg);
     box-shadow: var(--wj-field-ring);
 }
 
@@ -1354,7 +1363,7 @@
     resize: vertical;
     font-family: var(--font-monospace);
     font-size: 13px;
-    background: var(--wj-field-bg);
+    background-color: var(--wj-field-bg);
     color: var(--text-normal);
     border: none;
     border-radius: var(--wj-radius-control);
@@ -2139,7 +2148,7 @@
     padding: 4px 6px;
     border: none;
     border-radius: var(--wj-radius-control);
-    background: var(--wj-field-bg);
+    background-color: var(--wj-field-bg);
     box-shadow: var(--wj-field-ring);
     font-size: 13px;
     text-align: center;
@@ -2152,7 +2161,7 @@
     padding: 4px 8px;
     border: none;
     border-radius: var(--wj-radius-control);
-    background: var(--wj-field-bg);
+    background-color: var(--wj-field-bg);
     box-shadow: var(--wj-field-ring);
     font-size: 13px;
     text-align: center;

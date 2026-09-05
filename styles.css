@@ -21,6 +21,22 @@
     --wj-accent-soft-hover: color-mix(in srgb, var(--interactive-accent) 24%, transparent);
     --wj-danger-soft: color-mix(in srgb, var(--text-error) 12%, transparent);
     --wj-success-soft: color-mix(in srgb, var(--color-green) 14%, transparent);
+    /* A wash reads against the primary background, but inside a filled row it
+       sinks into the fill. Controls that sit on a row step up one rung so a
+       button still looks like a button. */
+    --wj-accent-medium: color-mix(in srgb, var(--interactive-accent) 30%, transparent);
+    --wj-accent-medium-hover: color-mix(in srgb, var(--interactive-accent) 42%, transparent);
+    --wj-danger-medium: color-mix(in srgb, var(--text-error) 22%, transparent);
+    --wj-danger-medium-hover: color-mix(in srgb, var(--text-error) 32%, transparent);
+    /* Fields are the one place the flat language keeps an edge: without it an
+       input is just a slightly different rectangle and nothing says "type
+       here". The hairline is an inset shadow, so focus never reflows the row. */
+    --wj-field-bg: var(--background-modifier-form-field, var(--background-primary));
+    --wj-field-ring: inset 0 0 0 1px
+        var(--background-modifier-border-hover, var(--background-modifier-border));
+    --wj-field-ring-hover: inset 0 0 0 1px
+        var(--background-modifier-border-focus, var(--interactive-accent));
+    --wj-field-ring-focus: inset 0 0 0 1px var(--interactive-accent);
 }
 
 /* ── Shared surface kit ─────────────────────────────────────
@@ -559,16 +575,31 @@
 .wj-settings .setting-item textarea,
 .wj-settings .setting-item select {
     border: none;
-    box-shadow: none;
     border-radius: var(--wj-radius-control);
-    background: var(--wj-surface-sunken);
+    background: var(--wj-field-bg);
+    box-shadow: var(--wj-field-ring);
+}
+
+.wj-modal .setting-item input[type="text"]:hover,
+.wj-modal .setting-item input[type="number"]:hover,
+.wj-modal .setting-item input[type="search"]:hover,
+.wj-modal .setting-item textarea:hover,
+.wj-modal .setting-item select:hover,
+.wj-settings .setting-item input[type="text"]:hover,
+.wj-settings .setting-item input[type="number"]:hover,
+.wj-settings .setting-item input[type="search"]:hover,
+.wj-settings .setting-item textarea:hover,
+.wj-settings .setting-item select:hover {
+    box-shadow: var(--wj-field-ring-hover);
 }
 
 .wj-modal .setting-item input:focus,
 .wj-modal .setting-item textarea:focus,
+.wj-modal .setting-item select:focus,
 .wj-settings .setting-item input:focus,
-.wj-settings .setting-item textarea:focus {
-    box-shadow: 0 0 0 2px var(--wj-accent-soft-hover);
+.wj-settings .setting-item textarea:focus,
+.wj-settings .setting-item select:focus {
+    box-shadow: var(--wj-field-ring-focus), 0 0 0 3px var(--wj-accent-soft);
 }
 
 /* Buttons Obsidian renders into a form row follow the same grading. The icon
@@ -580,13 +611,13 @@
     border-radius: var(--wj-radius-control);
     box-shadow: none;
     font-weight: 600;
-    background: var(--wj-accent-soft);
+    background: var(--wj-accent-medium);
     color: var(--text-normal);
 }
 
 .wj-modal .setting-item-control button:not(.clickable-icon):hover:not(:disabled),
 .wj-settings .setting-item-control button:not(.clickable-icon):hover:not(:disabled) {
-    background: var(--wj-accent-soft-hover);
+    background: var(--wj-accent-medium-hover);
 }
 
 .wj-modal .setting-item-control button.mod-cta,
@@ -602,13 +633,13 @@
 
 .wj-modal .setting-item-control button.mod-warning,
 .wj-settings .setting-item-control button.mod-warning {
-    background: var(--wj-danger-soft);
+    background: var(--wj-danger-medium);
     color: var(--text-error);
 }
 
 .wj-modal .setting-item-control button.mod-warning:hover:not(:disabled),
 .wj-settings .setting-item-control button.mod-warning:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--text-error) 20%, transparent);
+    background: var(--wj-danger-medium-hover);
 }
 
 .wj-modal .setting-item-control .clickable-icon,
@@ -1295,13 +1326,22 @@
     resize: vertical;
     font-family: var(--font-monospace);
     font-size: 13px;
-    background: var(--background-primary);
+    background: var(--wj-field-bg);
     color: var(--text-normal);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 6px;
+    border: none;
+    border-radius: var(--wj-radius-control);
+    box-shadow: var(--wj-field-ring);
     padding: 10px;
     box-sizing: border-box;
     line-height: 1.5;
+}
+
+.exercise-note-modal-textarea:hover {
+    box-shadow: var(--wj-field-ring-hover);
+}
+
+.exercise-note-modal-textarea:focus {
+    box-shadow: var(--wj-field-ring-focus), 0 0 0 3px var(--wj-accent-soft);
 }
 
 .exercise-note-modal-note {
@@ -2071,8 +2111,8 @@
     padding: 4px 6px;
     border: none;
     border-radius: var(--wj-radius-control);
-    box-shadow: none;
-    background: var(--wj-surface-sunken);
+    background: var(--wj-field-bg);
+    box-shadow: var(--wj-field-ring);
     font-size: 13px;
     text-align: center;
 }
@@ -2084,8 +2124,8 @@
     padding: 4px 8px;
     border: none;
     border-radius: var(--wj-radius-control);
-    box-shadow: none;
-    background: var(--wj-surface-sunken);
+    background: var(--wj-field-bg);
+    box-shadow: var(--wj-field-ring);
     font-size: 13px;
     text-align: center;
 }
@@ -2093,6 +2133,38 @@
 .wj-inline-input-wide {
     width: 96px;
     text-align: left;
+}
+
+.wj-set-field input:hover,
+.wj-inline-input:hover {
+    box-shadow: var(--wj-field-ring-hover);
+}
+
+.wj-set-field input:focus,
+.wj-inline-input:focus {
+    box-shadow: var(--wj-field-ring-focus), 0 0 0 3px var(--wj-accent-soft);
+}
+
+/* An editable row packs fields and icon buttons into one cluster, so the two
+   have to be told apart at a glance: a field is a neutral box with a hairline,
+   an action is a filled accent box. Elsewhere an icon button can stay
+   transparent because nothing sits next to it that you could type into. */
+.wj-row-editable .wj-icon-btn {
+    background: var(--wj-accent-soft);
+    color: var(--text-normal);
+}
+
+.wj-row-editable .wj-icon-btn:hover:not(:disabled) {
+    background: var(--wj-accent-soft-hover);
+}
+
+.wj-row-editable .wj-icon-btn-danger {
+    background: var(--wj-danger-soft);
+    color: var(--text-error);
+}
+
+.wj-row-editable .wj-icon-btn-danger:hover:not(:disabled) {
+    background: var(--wj-danger-medium);
 }
 
 /* A row whose controls are fields rather than buttons needs the whole width on

@@ -1,23 +1,33 @@
-import { App, Notice, Setting, TFile } from "obsidian";
+import { App, Notice, TFile } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
 import { WorkoutPlanDefinition, RoutineDefinition } from "../types";
 import { PlanBuilderModal } from "./PlanBuilderModal";
+import {
+  createActionBar,
+  createBackButton,
+  createButton,
+  createEmptyState,
+  createHint,
+  createIconButton,
+  createList,
+  createRow,
+  renderHeader,
+} from "../utils/uiKit";
 
 export class PlanSettingsPage {
-  async render(containerEl: HTMLElement, app: App, plugin: WorkoutTrackerPlugin, onBack: () => void): Promise<void> {
+  async render(
+    containerEl: HTMLElement,
+    app: App,
+    plugin: WorkoutTrackerPlugin,
+    onBack: () => void
+  ): Promise<void> {
     containerEl.empty();
+    containerEl.addClass("wj-settings");
 
-    new Setting(containerEl)
-      .addButton((btn) =>
-        btn.setButtonText("← Back to general settings").onClick(() => {
-          onBack();
-        })
-      );
-
-    containerEl.createEl("h2", { text: "Workout plans" });
-    containerEl.createEl("p", {
-      text: "Plans combine multiple routines into a training program. Each plan is stored as a note.",
-      cls: "setting-item-description",
+    createBackButton(containerEl, "Back to settings", () => onBack());
+    renderHeader(containerEl, {
+      title: "Workout plans",
+      subtitle: "Plans combine routines into a training program",
     });
 
     const listContainer = containerEl.createDiv();
@@ -32,19 +42,20 @@ export class PlanSettingsPage {
 
     await renderList();
 
-    new Setting(containerEl).addButton((btn) =>
-      btn
-        .setButtonText("Create new plan")
-        .setCta()
-        .onClick(() => {
-          void (async () => {
-            const routines = await plugin.definitionService.loadRoutineDefinitions();
-            new PlanBuilderModal(app, plugin, routines, () => {
-              void renderList();
-            }).open();
-          })();
-        })
-    );
+    const actions = createActionBar(containerEl);
+    createButton(actions, {
+      label: "Create plan",
+      variant: "primary",
+      icon: "plus",
+      onClick: () => {
+        void (async () => {
+          const routines = await plugin.definitionService.loadRoutineDefinitions();
+          new PlanBuilderModal(app, plugin, routines, () => {
+            void renderList();
+          }).open();
+        })();
+      },
+    });
   }
 
   private renderPlanList(
@@ -58,53 +69,76 @@ export class PlanSettingsPage {
     container.empty();
 
     if (plans.length === 0) {
-      container.createEl("p", {
-        text: "No workout plan notes found.",
-        cls: "setting-item-description",
+      createEmptyState(container, {
+        title: "No workout plans yet",
+        body: "Create one to group your routines into a program.",
       });
       return;
     }
 
+    const list = createList(container);
+
     plans.forEach((plan) => {
       const routineCount = plan.routines.length;
-      const setting = new Setting(container)
-        .setName(plan.name)
-        .setDesc(
-          `${routineCount} routine${routineCount !== 1 ? "s" : ""}` +
-            (plan.routines.length > 0
-              ? ` · ${plan.routines.map((r) => r.routineName).join(", ")}`
-              : "")
-        );
+      const meta = [
+        `${routineCount} routine${routineCount === 1 ? "" : "s"}`,
+        routineCount > 0 ? plan.routines.map((r) => r.routineName).join(", ") : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      const { actions } = createRow(list, {
+        title: plan.name,
+        meta,
+        onClick: plan.filePath
+          ? () => {
+              void app.workspace.openLinkText(plan.filePath, "", false);
+            }
+          : undefined,
+      });
+
+      createIconButton(actions, "pencil", "Edit plan", () => {
+        new PlanBuilderModal(
+          app,
+          plugin,
+          routines,
+          () => {
+            void onRefresh();
+          },
+          plan
+        ).open();
+      });
 
       if (plan.filePath) {
-        setting.addButton((btn) =>
-          btn.setButtonText("Open note").onClick(() => {
-            void app.workspace.openLinkText(plan.filePath, "", false);
-          })
-        );
+        createIconButton(actions, "file-text", "Open note", () => {
+          void app.workspace.openLinkText(plan.filePath, "", false);
+        });
       }
 
-      setting.addButton((btn) =>
-        btn
-          .setButtonText("Delete")
-          .setWarning()
-          .onClick(() => {
-            void (async () => {
-              if (!plan.filePath) {
-                new Notice("Cannot delete: plan file path is unknown.");
-                return;
-              }
-              const file = app.vault.getAbstractFileByPath(plan.filePath);
-              if (!(file instanceof TFile)) {
-                new Notice("Plan note file not found.");
-                return;
-              }
-              await app.fileManager.trashFile(file);
-              new Notice(`Deleted plan: ${plan.name}`);
-              await onRefresh();
-             })();
-          })
+      createIconButton(
+        actions,
+        "trash-2",
+        "Delete plan",
+        () => {
+          void (async () => {
+            if (!plan.filePath) {
+              new Notice("Cannot delete: plan file path is unknown.");
+              return;
+            }
+            const file = app.vault.getAbstractFileByPath(plan.filePath);
+            if (!(file instanceof TFile)) {
+              new Notice("Plan note file not found.");
+              return;
+            }
+            await app.fileManager.trashFile(file);
+            new Notice(`Deleted plan: ${plan.name}`);
+            await onRefresh();
+          })();
+        },
+        { danger: true }
       );
     });
+
+    createHint(container, "Tap a row to open its note.");
   }
 }

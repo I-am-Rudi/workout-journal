@@ -12,6 +12,7 @@ import {
   EXPOSED_IMAGE_MODES,
   ExerciseImageMode,
 } from "../utils/exerciseMediaService";
+import { createNote } from "../utils/uiKit";
 
 type SettingsPage = "main" | "exercises" | "routines" | "plans" | "templates";
 
@@ -25,6 +26,9 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
   }
 
   display(): void {
+    // Every page renders into the same element, so the plugin's flat treatment
+    // is applied here rather than in each of them.
+    this.containerEl.addClass("wj-settings");
     switch (this.currentPage) {
       case "exercises":
         this.renderExercises();
@@ -47,10 +51,12 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("p", {
-      text: "Configure folders, tracking behavior, and library tools for Workout Journal.",
-      cls: "setting-item-description",
-    });
+    // No page title here: the settings dialog already names the plugin, and a
+    // top-level heading in a settings tab is called out in plugin review.
+    createNote(
+      containerEl,
+      "Configure folders, tracking behaviour and library tools."
+    );
 
     new Setting(containerEl)
       .setName("Default workout folder")
@@ -336,10 +342,10 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
         });
       });
 
-    containerEl.createEl("p", {
-      text: EXERCISE_IMAGE_MODE_DESCRIPTIONS[this.plugin.settings.exerciseImageMode],
-      cls: "setting-item-description",
-    });
+    createNote(
+      containerEl,
+      EXERCISE_IMAGE_MODE_DESCRIPTIONS[this.plugin.settings.exerciseImageMode]
+    );
 
     if (this.plugin.settings.exerciseImageMode !== "none") {
       new Setting(containerEl)
@@ -361,7 +367,7 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
       .setName("Exercises")
       .setDesc("Manage exercise definitions stored as notes in your vault")
       .addButton((btn) =>
-        btn.setButtonText("Manage →").onClick(() => {
+        btn.setButtonText("Manage").onClick(() => {
           this.currentPage = "exercises";
           this.display();
         })
@@ -371,7 +377,7 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
       .setName("Routines")
       .setDesc("Manage workout routines stored as notes in your vault")
       .addButton((btn) =>
-        btn.setButtonText("Manage →").onClick(() => {
+        btn.setButtonText("Manage").onClick(() => {
           this.currentPage = "routines";
           this.display();
         })
@@ -381,7 +387,7 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
       .setName("Workout plans")
       .setDesc("Create and manage note-based workout plans built from routines")
       .addButton((btn) =>
-        btn.setButtonText("Manage →").onClick(() => {
+        btn.setButtonText("Manage").onClick(() => {
           this.currentPage = "plans";
           this.display();
         })
@@ -391,7 +397,7 @@ export class WorkoutTrackerSettingTab extends PluginSettingTab {
       .setName("Note content templates")
       .setDesc("Extra frontmatter and body text appended to each generated note type")
       .addButton((btn) =>
-        btn.setButtonText("Manage →").onClick(() => {
+        btn.setButtonText("Manage").onClick(() => {
           this.currentPage = "templates";
           this.display();
         })

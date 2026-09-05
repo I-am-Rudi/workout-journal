@@ -1,6 +1,12 @@
 import { App, Modal, Setting } from "obsidian";
 import { SessionFinishOptions } from "../types";
 import { formatDurationMinutes } from "../utils/sessionTimerUtils";
+import {
+  createActionBar,
+  createButton,
+  markPluginModal,
+  renderHeader,
+} from "../utils/uiKit";
 
 export class SessionFinishModal extends Modal {
   onSubmit: (options: SessionFinishOptions) => void;
@@ -29,9 +35,12 @@ export class SessionFinishModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.addClass("wj-finish-modal");
+    markPluginModal(contentEl, "wj-finish-modal");
 
-    contentEl.createEl("h2", { text: "Finish workout" });
+    renderHeader(contentEl, {
+      title: "Finish workout",
+      subtitle: "Check the numbers before the note is written",
+    });
 
     if (this.measuredMinutes !== undefined) {
       const summary = contentEl.createDiv({ cls: "wj-finish-duration" });
@@ -97,14 +106,18 @@ export class SessionFinishModal extends Modal {
           })
       );
 
-    new Setting(contentEl).addButton((btn) =>
-      btn
-        .setButtonText("Finish workout")
-        .setCta()
-        .onClick(() => {
-          this.onSubmit(this.options);
-          this.close();
-        })
-    );
+    const actions = createActionBar(contentEl);
+    createButton(actions, {
+      label: "Finish workout",
+      variant: "primary",
+      onClick: () => {
+        this.onSubmit(this.options);
+        this.close();
+      },
+    });
+  }
+
+  onClose() {
+    this.contentEl.empty();
   }
 }

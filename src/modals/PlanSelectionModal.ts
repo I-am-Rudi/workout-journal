@@ -1,5 +1,14 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Modal } from "obsidian";
 import { RoutineDefinition, WorkoutPlanDefinition } from "../types";
+import {
+  createBackButton,
+  createButton,
+  createEmptyState,
+  createList,
+  createRow,
+  markPluginModal,
+  renderHeader,
+} from "../utils/uiKit";
 
 /**
  * Two-step picker: first the plan names, then the routines inside the chosen
@@ -24,6 +33,7 @@ export class PlanSelectionModal extends Modal {
   }
 
   onOpen() {
+    markPluginModal(this.contentEl);
     // A single plan has nothing to choose from — go straight to its routines.
     if (this.plans.length === 1) {
       this.selectedPlan = this.plans[0];
@@ -46,50 +56,67 @@ export class PlanSelectionModal extends Modal {
   private renderPlanStep() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Start workout from plan" });
+    renderHeader(contentEl, {
+      title: "Start from plan",
+      subtitle: "Pick a plan, then the routine inside it",
+    });
 
     if (!this.plans.length) {
-      contentEl.createEl("p", { text: "No workout plan notes found." });
+      createEmptyState(contentEl, {
+        title: "No workout plans yet",
+        body: "Plans group routines into a training program.",
+      });
       return;
     }
 
+    const list = createList(contentEl);
     this.plans.forEach((plan) => {
       const routineCount = plan.routines.length;
-      new Setting(contentEl)
-        .setName(plan.name)
-        .setDesc(`${routineCount} routine${routineCount === 1 ? "" : "s"}`)
-        .addButton((btn) =>
-          btn
-            .setButtonText("Select")
-            .setCta()
-            .onClick(() => {
-              this.selectedPlan = plan;
-              this.render();
-            })
-        );
+      const { actions } = createRow(list, {
+        title: plan.name,
+        meta: `${routineCount} routine${routineCount === 1 ? "" : "s"}`,
+        onClick: () => {
+          this.selectedPlan = plan;
+          this.render();
+        },
+      });
+      createButton(actions, {
+        label: "Open",
+        variant: "secondary",
+        onClick: () => {
+          this.selectedPlan = plan;
+          this.render();
+        },
+      });
     });
   }
 
   private renderRoutineStep(plan: WorkoutPlanDefinition) {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: plan.name });
 
     // Only offer a way back when there was actually a plan list to return to.
     if (this.plans.length > 1) {
-      new Setting(contentEl).addButton((btn) =>
-        btn.setButtonText("← Back to plans").onClick(() => {
-          this.selectedPlan = null;
-          this.render();
-        })
-      );
+      createBackButton(contentEl, "All plans", () => {
+        this.selectedPlan = null;
+        this.render();
+      });
     }
 
+    renderHeader(contentEl, {
+      title: plan.name,
+      subtitle: "Pick the routine you are training today",
+    });
+
     if (!plan.routines.length) {
-      contentEl.createEl("p", { text: "No routines configured." });
+      createEmptyState(contentEl, {
+        title: "No routines in this plan",
+        body: "Add routines to the plan note to start them from here.",
+      });
       return;
     }
 
+    const list = createList(contentEl);
     plan.routines.forEach((entry) => {
       const routine = this.routinesById.get(entry.routineId);
       const details: string[] = [];
@@ -97,26 +124,31 @@ export class PlanSelectionModal extends Modal {
         details.push(
           `${routine.exercises.length} exercise${routine.exercises.length === 1 ? "" : "s"}`
         );
-        if (routine.isCircle) details.push("circuit");
       } else {
         details.push("Routine note not found");
       }
       if (entry.notes) details.push(entry.notes);
 
-      new Setting(contentEl)
-        .setName(entry.day ? `${entry.day}: ${entry.routineName}` : entry.routineName)
-        .setDesc(details.join(" • "))
-        .addButton((btn) =>
-          btn
-            .setButtonText("Start")
-            .setCta()
-            .setDisabled(!routine)
-            .onClick(() => {
-              if (!routine) return;
-              this.onSelect(plan, routine);
-              this.close();
-            })
-        );
+      const chips: Array<{ text: string; accent?: boolean }> = [];
+      if (entry.day) chips.push({ text: entry.day });
+      if (routine?.isCircle) chips.push({ text: "Circuit", accent: true });
+
+      const { actions } = createRow(list, {
+        title: entry.routineName,
+        meta: details.join(" · "),
+        chips,
+        muted: !routine,
+      });
+      createButton(actions, {
+        label: "Start",
+        variant: "secondary",
+        disabled: !routine,
+        onClick: () => {
+          if (!routine) return;
+          this.onSelect(plan, routine);
+          this.close();
+        },
+      });
     });
   }
 }

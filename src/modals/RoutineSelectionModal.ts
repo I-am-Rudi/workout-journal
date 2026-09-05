@@ -1,5 +1,13 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Modal } from "obsidian";
 import { RoutineDefinition } from "../types";
+import {
+  createButton,
+  createEmptyState,
+  createList,
+  createRow,
+  markPluginModal,
+  renderHeader,
+} from "../utils/uiKit";
 
 export class RoutineSelectionModal extends Modal {
   routines: RoutineDefinition[];
@@ -18,27 +26,47 @@ export class RoutineSelectionModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Start workout from routine" });
+    markPluginModal(contentEl);
+
+    renderHeader(contentEl, {
+      title: "Start from routine",
+      subtitle: "Pick the routine you are training today",
+    });
 
     if (this.routines.length === 0) {
-      contentEl.createEl("p", { text: "No routine notes found." });
+      createEmptyState(contentEl, {
+        title: "No routines yet",
+        body: "Create a routine note to start a guided session from it.",
+      });
       return;
     }
 
+    const list = createList(contentEl);
     this.routines.forEach((routine) => {
-      new Setting(contentEl)
-        .setName(routine.isCircle ? `${routine.name} (circuit)` : routine.name)
-        .setDesc(
-          `${routine.exercises.length} exercises${
-            routine.estimatedDuration ? ` • ~${routine.estimatedDuration} min` : ""
-          }`
-        )
-        .addButton((btn) =>
-          btn.setButtonText("Start").onClick(() => {
-            this.onSelect(routine);
-            this.close();
-          })
-        );
+      const meta = [
+        `${routine.exercises.length} exercise${routine.exercises.length === 1 ? "" : "s"}`,
+        routine.estimatedDuration ? `~${routine.estimatedDuration} min` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      const { actions } = createRow(list, {
+        title: routine.name,
+        meta,
+        chips: routine.isCircle ? [{ text: "Circuit", accent: true }] : undefined,
+      });
+      createButton(actions, {
+        label: "Start",
+        variant: "secondary",
+        onClick: () => {
+          this.onSelect(routine);
+          this.close();
+        },
+      });
     });
+  }
+
+  onClose() {
+    this.contentEl.empty();
   }
 }

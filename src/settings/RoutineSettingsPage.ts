@@ -1,16 +1,34 @@
-import { App, Notice, Setting, TFile } from "obsidian";
+import { App, Notice, TFile } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
 import { RoutineBuilderModal } from "./RoutineBuilderModal";
+import {
+  createActionBar,
+  createBackButton,
+  createButton,
+  createEmptyState,
+  createHint,
+  createIconButton,
+  createList,
+  createRow,
+  createSectionLabel,
+  renderHeader,
+} from "../utils/uiKit";
 
 export class RoutineSettingsPage {
-  async render(containerEl: HTMLElement, app: App, plugin: WorkoutTrackerPlugin, onBack: () => void): Promise<void> {
+  async render(
+    containerEl: HTMLElement,
+    app: App,
+    plugin: WorkoutTrackerPlugin,
+    onBack: () => void
+  ): Promise<void> {
     containerEl.empty();
+    containerEl.addClass("wj-settings");
 
-    new Setting(containerEl).addButton((btn) =>
-      btn.setButtonText("← Back to general settings").onClick(() => onBack())
-    );
-
-    containerEl.createEl("h2", { text: "Routines" });
+    createBackButton(containerEl, "Back to settings", () => onBack());
+    renderHeader(containerEl, {
+      title: "Routines",
+      subtitle: "The workouts you start a session from",
+    });
 
     const listContainer = containerEl.createDiv();
 
@@ -18,9 +36,9 @@ export class RoutineSettingsPage {
       listContainer.empty();
 
       if (!plugin.settings.routinesFolder) {
-        listContainer.createEl("p", {
-          text: "Configure the routines folder in general settings first.",
-          cls: "setting-item-description",
+        createEmptyState(listContainer, {
+          title: "No routines folder set",
+          body: "Pick a routines folder in the general settings first.",
         });
         return;
       }
@@ -29,46 +47,66 @@ export class RoutineSettingsPage {
       routines.sort((a, b) => a.name.localeCompare(b.name));
 
       if (routines.length === 0) {
-        listContainer.createEl("p", {
-          text: "No routine notes found. Add your first routine below.",
-          cls: "setting-item-description",
+        createEmptyState(listContainer, {
+          title: "No routines yet",
+          body: "Add one below and fill it with exercises.",
         });
         return;
       }
 
+      createSectionLabel(
+        listContainer,
+        `${routines.length} routine${routines.length === 1 ? "" : "s"}`
+      );
+      const list = createList(listContainer);
+
       for (const routine of routines) {
-        const exerciseCount = routine.exercises.length;
-        const desc = (routine.isCircle ? "Circuit · " : "") +
-          `${exerciseCount} exercise${exerciseCount !== 1 ? "s" : ""}` +
-          (exerciseCount > 0 ? ` · ${routine.exercises.map((e) => e.exerciseName).join(", ")}` : "");
+        const count = routine.exercises.length;
+        const meta = [
+          `${count} exercise${count === 1 ? "" : "s"}`,
+          count > 0 ? routine.exercises.map((e) => e.exerciseName).join(", ") : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
 
-        const setting = new Setting(listContainer).setName(routine.name).setDesc(desc);
+        const { actions } = createRow(list, {
+          title: routine.name,
+          meta,
+          chips: routine.isCircle ? [{ text: "Circuit", accent: true }] : undefined,
+          onClick: routine.filePath
+            ? () => {
+                void app.workspace.openLinkText(routine.filePath!, "", false);
+              }
+            : undefined,
+        });
 
-        setting.addButton((btn) =>
-          btn.setButtonText("Edit details").onClick(() => {
-            new RoutineBuilderModal(app, plugin, () => { void renderList(); }, {
-              existing: routine,
-            }).open();
-          })
-        );
+        createIconButton(actions, "pencil", "Edit details", () => {
+          new RoutineBuilderModal(
+            app,
+            plugin,
+            () => {
+              void renderList();
+            },
+            { existing: routine }
+          ).open();
+        });
 
         if (routine.filePath) {
-          setting.addButton((btn) =>
-            btn.setButtonText("Edit sets").onClick(() => {
-              const file = app.vault.getAbstractFileByPath(routine.filePath!);
-              if (file instanceof TFile) void plugin.openRoutineEditor(file);
-            })
-          );
+          createIconButton(actions, "list-checks", "Edit sets", () => {
+            const file = app.vault.getAbstractFileByPath(routine.filePath!);
+            if (file instanceof TFile) void plugin.openRoutineEditor(file);
+          });
 
-          setting.addButton((btn) =>
-            btn.setButtonText("Open note").onClick(() => {
-              void app.workspace.openLinkText(routine.filePath!, "", false);
-            })
-          );
+          createIconButton(actions, "file-text", "Open note", () => {
+            void app.workspace.openLinkText(routine.filePath!, "", false);
+          });
         }
 
-        setting.addButton((btn) =>
-          btn.setButtonText("Delete").setWarning().onClick(() => {
+        createIconButton(
+          actions,
+          "trash-2",
+          "Delete routine",
+          () => {
             void (async () => {
               if (!routine.filePath) {
                 new Notice("Cannot delete: file path unknown.");
@@ -83,27 +121,36 @@ export class RoutineSettingsPage {
               new Notice(`Deleted: ${routine.name}`);
               await renderList();
             })();
-          })
+          },
+          { danger: true }
         );
       }
+
+      createHint(listContainer, "Tap a row to open its note.");
     };
 
     await renderList();
 
-    new Setting(containerEl)
-      .addButton((btn) =>
-        btn.setButtonText("Add routine").setCta().onClick(() => {
-          void plugin.createRoutineNoteFromPrompt(false, () => {
-            void renderList();
-          });
-        })
-      )
-      .addButton((btn) =>
-        btn.setButtonText("Add circuit routine").onClick(() => {
-          void plugin.createRoutineNoteFromPrompt(true, () => {
-            void renderList();
-          });
-        })
-      );
+    const actions = createActionBar(containerEl);
+    createButton(actions, {
+      label: "Add routine",
+      variant: "primary",
+      icon: "plus",
+      onClick: () => {
+        void plugin.createRoutineNoteFromPrompt(false, () => {
+          void renderList();
+        });
+      },
+    });
+    createButton(actions, {
+      label: "Add circuit",
+      variant: "secondary",
+      icon: "timer",
+      onClick: () => {
+        void plugin.createRoutineNoteFromPrompt(true, () => {
+          void renderList();
+        });
+      },
+    });
   }
 }

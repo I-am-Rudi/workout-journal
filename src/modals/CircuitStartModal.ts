@@ -1,6 +1,14 @@
 import { App, Modal, Setting } from "obsidian";
 import { RoutineDefinition } from "../types";
 import { formatSeconds } from "../utils/exerciseTypeUtils";
+import {
+  createActionBar,
+  createButton,
+  createNote,
+  createSectionLabel,
+  markPluginModal,
+  renderHeader,
+} from "../utils/uiKit";
 
 const DEFAULT_ROUNDS = 1;
 const MAX_ROUNDS = 99;
@@ -25,8 +33,13 @@ export class CircuitStartModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: `Start circuit: ${this.routine.name}` });
+    markPluginModal(contentEl);
+    renderHeader(contentEl, {
+      title: this.routine.name,
+      subtitle: "Circuit — each exercise runs on a timer",
+    });
 
+    createSectionLabel(contentEl, "Timeline");
     const list = contentEl.createDiv({ cls: "workout-circuit-start-list" });
     this.routine.exercises.forEach((entry) => {
       const set = entry.sets[0];
@@ -54,17 +67,23 @@ export class CircuitStartModal extends Modal {
         });
       });
 
-    this.estimateEl = contentEl.createEl("p", { cls: "setting-item-description" });
+    this.estimateEl = createNote(contentEl, "", "accent");
     this.updateEstimate();
 
-    new Setting(contentEl)
-      .addButton((btn) =>
-        btn.setButtonText("Start").setCta().onClick(() => {
-          this.onStart(this.rounds);
-          this.close();
-        })
-      )
-      .addButton((btn) => btn.setButtonText("Cancel").onClick(() => this.close()));
+    const actions = createActionBar(contentEl);
+    createButton(actions, {
+      label: "Start circuit",
+      variant: "primary",
+      onClick: () => {
+        this.onStart(this.rounds);
+        this.close();
+      },
+    });
+    createButton(actions, {
+      label: "Cancel",
+      variant: "quiet",
+      onClick: () => this.close(),
+    });
   }
 
   private updateEstimate(): void {

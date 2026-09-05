@@ -1,4 +1,5 @@
 import { App, Modal, Setting } from "obsidian";
+import { createActionBar, createButton, markPluginModal, renderHeader } from "../utils/uiKit";
 
 export class InputPromptModal extends Modal {
   label: string;
@@ -23,32 +24,46 @@ export class InputPromptModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: this.label });
+    markPluginModal(contentEl);
 
-    new Setting(contentEl).addText((text) => {
+    renderHeader(contentEl, { title: this.label });
+
+    new Setting(contentEl).setName("Name").addText((text) => {
       text
         .setPlaceholder(this.placeholder)
         .setValue(this.value)
         .onChange((value) => {
           this.value = value;
         });
+      // Enter submits: this modal only ever asks for one line.
+      text.inputEl.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") this.submit();
+      });
+      window.setTimeout(() => text.inputEl.focus(), 50);
     });
 
-    new Setting(contentEl)
-      .addButton((btn) =>
-        btn
-          .setButtonText("Create")
-          .setCta()
-          .onClick(() => {
-            this.onSubmit(this.value.trim() || null);
-            this.close();
-          })
-      )
-      .addButton((btn) =>
-        btn.setButtonText("Cancel").onClick(() => {
-          this.onSubmit(null);
-          this.close();
-        })
-      );
+    const actions = createActionBar(contentEl);
+    createButton(actions, {
+      label: "Create",
+      variant: "primary",
+      onClick: () => this.submit(),
+    });
+    createButton(actions, {
+      label: "Cancel",
+      variant: "quiet",
+      onClick: () => {
+        this.onSubmit(null);
+        this.close();
+      },
+    });
+  }
+
+  private submit(): void {
+    this.onSubmit(this.value.trim() || null);
+    this.close();
+  }
+
+  onClose() {
+    this.contentEl.empty();
   }
 }

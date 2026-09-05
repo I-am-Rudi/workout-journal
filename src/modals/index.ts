@@ -19,3 +19,5 @@ export { ExerciseDefinitionModal } from "./ExerciseDefinitionModal";
 export { CircuitStartModal } from "./CircuitStartModal";
 export { CircuitSummaryModal } from "./CircuitSummaryModal";
 export { WorkoutHomeModal } from "./WorkoutHomeModal";
+export { ExerciseLibraryModal } from "./ExerciseLibraryModal";
+export { WorkoutHistoryModal } from "./WorkoutHistoryModal";

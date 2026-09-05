@@ -11,6 +11,16 @@ import {
   DEFAULT_CIRCUIT_WORK_SECONDS,
   isDurationOnly,
 } from "../utils/exerciseTypeUtils";
+import {
+  createActionBar,
+  createButton,
+  createHint,
+  createIconButton,
+  createList,
+  createRow,
+  markPluginModal,
+  renderHeader,
+} from "../utils/uiKit";
 
 const DEFAULT_SETS = 3;
 const DEFAULT_REPS = 8;
@@ -72,12 +82,16 @@ export class RoutineBuilderModal extends Modal {
   private render(): void {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", {
-      text: this.existing
+    markPluginModal(contentEl);
+    renderHeader(contentEl, {
+      title: this.existing
         ? "Edit routine"
         : this.isCircle
           ? "New circuit routine"
           : "New routine",
+      subtitle: this.isCircle
+        ? "Runs as a guided timer through duration-only exercises"
+        : "Saved as a routine note you can start any time",
     });
 
     new Setting(contentEl).setName("Name").addText((text) =>
@@ -160,16 +174,19 @@ export class RoutineBuilderModal extends Modal {
       );
     }
 
-    new Setting(contentEl)
-      .addButton((btn) =>
-        btn
-          .setButtonText(this.existing ? "Update routine" : "Create routine")
-          .setCta()
-          .onClick(() => {
-            void this.save();
-          })
-      )
-      .addButton((btn) => btn.setButtonText("Cancel").onClick(() => this.close()));
+    const actions = createActionBar(contentEl);
+    createButton(actions, {
+      label: this.existing ? "Update routine" : "Create routine",
+      variant: "primary",
+      onClick: () => {
+        void this.save();
+      },
+    });
+    createButton(actions, {
+      label: "Cancel",
+      variant: "quiet",
+      onClick: () => this.close(),
+    });
   }
 
   private buildEntry(exercise: ExerciseDefinition): RoutineExerciseEntry {
@@ -205,104 +222,124 @@ export class RoutineBuilderModal extends Modal {
     container.empty();
 
     if (!this.entries.length) {
-      container.createEl("p", {
-        text: "No exercises added yet.",
-        cls: "setting-item-description",
-      });
+      createHint(
+        container,
+        this.isCircle
+          ? "No stations yet — add duration-only exercises below."
+          : "No exercises yet — add them below."
+      );
       return;
     }
 
+    const list = createList(container);
     this.entries.forEach((entry, index) => {
-      const setting = new Setting(container).setName(entry.exerciseName);
+      const { row, actions } = createRow(list, {
+        title: entry.exerciseName,
+        meta: this.isCircle ? "Work / pause in seconds" : "Sets × reps",
+      });
+      row.addClass("wj-row-editable");
 
       if (this.isCircle) {
-        setting.setDesc("Work / pause in seconds");
-        setting.addText((text) => {
-          text.inputEl.type = "number";
-          text.inputEl.min = "0";
-          text.inputEl.addClass("workout-circuit-time-input");
-          text.inputEl.setAttr("aria-label", `${entry.exerciseName} work seconds`);
-          text.setValue(String(entry.sets[0]?.duration ?? DEFAULT_CIRCUIT_WORK_SECONDS));
-          text.onChange((value) => {
-            const parsed = parseInt(value);
-            entry.sets[0].duration = Number.isNaN(parsed) ? 0 : Math.max(0, parsed);
-          });
-        });
-        setting.addText((text) => {
-          text.inputEl.type = "number";
-          text.inputEl.min = "0";
-          text.inputEl.addClass("workout-circuit-time-input");
-          text.inputEl.setAttr("aria-label", `${entry.exerciseName} pause seconds`);
-          text.setValue(String(entry.sets[0]?.restTime ?? DEFAULT_CIRCUIT_REST_SECONDS));
-          text.onChange((value) => {
-            const parsed = parseInt(value);
-            entry.sets[0].restTime = Number.isNaN(parsed) ? 0 : Math.max(0, parsed);
-          });
-        });
+        this.createInlineNumber(
+          actions,
+          `${entry.exerciseName} work seconds`,
+          entry.sets[0]?.duration ?? DEFAULT_CIRCUIT_WORK_SECONDS,
+          0,
+          (value) => {
+            entry.sets[0].duration = value ?? 0;
+          }
+        );
+        this.createInlineNumber(
+          actions,
+          `${entry.exerciseName} pause seconds`,
+          entry.sets[0]?.restTime ?? DEFAULT_CIRCUIT_REST_SECONDS,
+          0,
+          (value) => {
+            entry.sets[0].restTime = value ?? 0;
+          }
+        );
       } else {
-        setting.setDesc("Sets × reps");
-        setting.addText((text) => {
-          text.inputEl.type = "number";
-          text.inputEl.min = "1";
-          text.inputEl.addClass("workout-routine-count-input");
-          text.inputEl.setAttr("aria-label", `${entry.exerciseName} set count`);
-          text.setValue(String(entry.sets.length));
-          text.onChange((value) => {
-            const parsed = parseInt(value);
-            const count = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(20, parsed));
+        this.createInlineNumber(
+          actions,
+          `${entry.exerciseName} set count`,
+          entry.sets.length,
+          1,
+          (value) => {
+            const count = Math.min(20, Math.max(1, value ?? 1));
             const template = entry.sets[entry.sets.length - 1] ?? { reps: DEFAULT_REPS };
             while (entry.sets.length > count) entry.sets.pop();
             while (entry.sets.length < count) entry.sets.push({ ...template });
-          });
-        });
-        setting.addText((text) => {
-          text.inputEl.type = "number";
-          text.inputEl.min = "0";
-          text.inputEl.addClass("workout-routine-count-input");
-          text.inputEl.setAttr("aria-label", `${entry.exerciseName} reps`);
-          text.setValue(String(entry.sets[0]?.reps ?? DEFAULT_REPS));
-          text.onChange((value) => {
-            const parsed = parseInt(value);
-            const reps = Number.isNaN(parsed) ? undefined : Math.max(0, parsed);
+          }
+        );
+        this.createInlineNumber(
+          actions,
+          `${entry.exerciseName} reps`,
+          entry.sets[0]?.reps ?? DEFAULT_REPS,
+          0,
+          (value) => {
             entry.sets.forEach((set) => {
-              set.reps = reps;
+              set.reps = value;
             });
-          });
-        });
+          }
+        );
       }
 
-      setting.addExtraButton((btn) =>
-        btn
-          .setIcon("arrow-up")
-          .setTooltip("Move up")
-          .setDisabled(index === 0)
-          .onClick(() => {
-            const [moved] = this.entries.splice(index, 1);
-            this.entries.splice(index - 1, 0, moved);
-            this.render();
-          })
+      createIconButton(
+        actions,
+        "arrow-up",
+        "Move up",
+        () => {
+          const [moved] = this.entries.splice(index, 1);
+          this.entries.splice(index - 1, 0, moved);
+          this.render();
+        },
+        { disabled: index === 0 }
       );
-      setting.addExtraButton((btn) =>
-        btn
-          .setIcon("arrow-down")
-          .setTooltip("Move down")
-          .setDisabled(index === this.entries.length - 1)
-          .onClick(() => {
-            const [moved] = this.entries.splice(index, 1);
-            this.entries.splice(index + 1, 0, moved);
-            this.render();
-          })
+      createIconButton(
+        actions,
+        "arrow-down",
+        "Move down",
+        () => {
+          const [moved] = this.entries.splice(index, 1);
+          this.entries.splice(index + 1, 0, moved);
+          this.render();
+        },
+        { disabled: index === this.entries.length - 1 }
       );
-      setting.addExtraButton((btn) =>
-        btn
-          .setIcon("x")
-          .setTooltip("Remove")
-          .onClick(() => {
-            this.entries.splice(index, 1);
-            this.render();
-          })
+      createIconButton(
+        actions,
+        "x",
+        "Remove",
+        () => {
+          this.entries.splice(index, 1);
+          this.render();
+        },
+        { danger: true }
       );
     });
+  }
+
+  /**
+   * A compact whole-number field that lives inside a row's control cluster.
+   * An emptied field reports `undefined` rather than zero, so clearing a reps
+   * box does not write a 0 into the routine note.
+   */
+  private createInlineNumber(
+    parent: HTMLElement,
+    label: string,
+    value: number,
+    min: number,
+    onChange: (value: number | undefined) => void
+  ): HTMLInputElement {
+    const input = parent.createEl("input", { type: "number", cls: "wj-inline-input" });
+    input.min = String(min);
+    input.value = String(value);
+    input.setAttr("aria-label", label);
+    input.addEventListener("input", () => {
+      const parsed = parseInt(input.value);
+      onChange(Number.isNaN(parsed) ? undefined : Math.max(min, parsed));
+    });
+    return input;
   }
 
   private exerciseById(id: string): ExerciseDefinition | undefined {

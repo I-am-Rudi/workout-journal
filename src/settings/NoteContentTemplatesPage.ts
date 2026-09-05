@@ -1,5 +1,6 @@
 import { Setting } from "obsidian";
 import WorkoutTrackerPlugin from "../plugin";
+import { createBackButton, createNote, renderHeader } from "../utils/uiKit";
 
 const NOTE_TYPES: Array<{ key: "exercise" | "routine" | "plan" | "workout"; label: string }> = [
   { key: "exercise", label: "Exercise note" },
@@ -11,22 +12,22 @@ const NOTE_TYPES: Array<{ key: "exercise" | "routine" | "plan" | "workout"; labe
 export class NoteContentTemplatesPage {
   render(containerEl: HTMLElement, plugin: WorkoutTrackerPlugin, onBack: () => void): void {
     containerEl.empty();
+    containerEl.addClass("wj-settings");
 
-    new Setting(containerEl)
-      .addButton((btn) =>
-        btn.setButtonText("← Back to general settings").onClick(() => {
-          onBack();
-        })
-      );
-
-    containerEl.createEl("h2", { text: "Note content templates" });
-    containerEl.createEl("p", {
-      text: "Extra frontmatter properties (YAML) and body text appended to each generated note type. Plugin-managed properties (wj-id, wj-name, wj-type, etc.) always take precedence over template frontmatter.",
-      cls: "setting-item-description",
+    createBackButton(containerEl, "Back to settings", () => onBack());
+    renderHeader(containerEl, {
+      title: "Note content templates",
+      subtitle: "Extra frontmatter and body text for each generated note",
     });
 
+    createNote(
+      containerEl,
+      "Plugin-managed properties (wj-id, wj-name, wj-type, and so on) always take precedence over template frontmatter.",
+      "accent"
+    );
+
     for (const { key, label } of NOTE_TYPES) {
-      containerEl.createEl("h3", { text: label });
+      new Setting(containerEl).setName(label).setHeading();
 
       new Setting(containerEl)
         .setName("Additional frontmatter")

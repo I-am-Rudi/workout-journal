@@ -59,7 +59,10 @@ export class WorkoutFileService {
   async loadWorkout(file: TFile): Promise<Workout | null> {
     try {
       const content = await this.app.vault.read(file);
-      return this.parseWorkoutFromContent(content, file.basename);
+      const workout = this.parseWorkoutFromContent(content, file.basename);
+      // Carried through so callers can jump straight to the note.
+      if (workout) workout.filePath = file.path;
+      return workout;
     } catch (error) {
       console.error(`Error loading workout from ${file.path}:`, error);
       return null;

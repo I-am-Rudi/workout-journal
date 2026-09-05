@@ -1,4 +1,5 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Modal } from "obsidian";
+import { createActionBar, createButton, createNote, markPluginModal, renderHeader } from "../utils/uiKit";
 
 export class ConfirmModal extends Modal {
   private message: string;
@@ -13,26 +14,25 @@ export class ConfirmModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("p", { text: this.message });
+    markPluginModal(contentEl);
 
-    new Setting(contentEl)
-      .addButton((btn) =>
-        btn
-          .setButtonText("Discard session")
-          .setWarning()
-          .onClick(() => {
-            this.onConfirm();
-            this.close();
-          })
-      )
-      .addButton((btn) =>
-        btn
-          .setButtonText("Keep session")
-          .setCta()
-          .onClick(() => {
-            this.close();
-          })
-      );
+    renderHeader(contentEl, { title: "Discard workout?" });
+    createNote(contentEl, this.message);
+
+    const actions = createActionBar(contentEl);
+    createButton(actions, {
+      label: "Keep session",
+      variant: "primary",
+      onClick: () => this.close(),
+    });
+    createButton(actions, {
+      label: "Discard session",
+      variant: "danger",
+      onClick: () => {
+        this.onConfirm();
+        this.close();
+      },
+    });
   }
 
   onClose() {

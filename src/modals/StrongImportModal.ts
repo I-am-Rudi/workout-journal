@@ -7,6 +7,12 @@ import {
   deriveExerciseDefsFromWorkouts,
 } from "../utils/strongImportService";
 import { Workout } from "../types";
+import {
+  createActionBar,
+  createNote,
+  markPluginModal,
+  renderHeader,
+} from "../utils/uiKit";
 
 function readFileAsText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -53,12 +59,11 @@ export class StrongImportModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.addClass("strong-import-modal");
+    markPluginModal(contentEl, "strong-import-modal");
 
-    new Setting(contentEl).setName("Import from strong app").setHeading();
-    contentEl.createEl("p", {
-      text: "Import your workout history exported from the strong app.",
-      cls: "setting-item-description",
+    renderHeader(contentEl, {
+      title: "Import from Strong",
+      subtitle: "Bring your workout history over from the Strong app",
     });
 
     // ── Workouts CSV ──────────────────────────────────────────────────────
@@ -69,10 +74,7 @@ export class StrongImportModal extends Modal {
     workoutsInput.accept = ".csv";
     workoutsInput.hide();
 
-    this.workoutsFileLabel = contentEl.createEl("p", {
-      text: "No file selected",
-      cls: "setting-item-description",
-    });
+    this.workoutsFileLabel = createNote(contentEl, "No file selected", "inset");
 
     new Setting(contentEl)
       .setName("Workouts csv")
@@ -103,10 +105,11 @@ export class StrongImportModal extends Modal {
 
     // Weight unit warning
     const configuredUnit = this.plugin.settings.weightUnit;
-    contentEl.createEl("p", {
-      text: `ℹ️ Strong exports weights in the unit you used in the app. This plugin is configured to use "${configuredUnit}". Weights are imported as-is — verify your Strong unit matches.`,
-      cls: "setting-item-description",
-    });
+    createNote(
+      contentEl,
+      `Strong exports weights in the unit you used in the app. This plugin is configured to use "${configuredUnit}". Weights are imported as-is — verify your Strong unit matches.`,
+      "accent"
+    );
 
     new Setting(contentEl)
       .setName("Create workout notes")
@@ -164,20 +167,21 @@ export class StrongImportModal extends Modal {
 
     // ── Preview ───────────────────────────────────────────────────────────
     new Setting(contentEl).setName("Preview").setHeading();
-    this.previewEl = contentEl.createEl("p", {
-      text: "Load a workouts.csv file to see a preview.",
-      cls: "setting-item-description",
-    });
+    this.previewEl = createNote(
+      contentEl,
+      "Load a workouts.csv file to see a preview.",
+      "inset"
+    );
 
     // ── Error area ────────────────────────────────────────────────────────
-    this.errorEl = contentEl.createEl("p", { cls: "mod-warning" });
+    this.errorEl = createNote(contentEl, "", "warning");
     this.errorEl.hide();
 
     // ── Import button ─────────────────────────────────────────────────────
-    const btnSetting = new Setting(contentEl);
-    this.importBtnEl = btnSetting.controlEl.createEl("button", {
+    const actions = createActionBar(contentEl);
+    this.importBtnEl = actions.createEl("button", {
       text: "Import",
-      cls: "mod-cta",
+      cls: "wj-btn wj-btn-primary",
     });
     this.importBtnEl.disabled = true;
     this.importBtnEl.addEventListener("click", () => {

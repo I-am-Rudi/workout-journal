@@ -32,6 +32,8 @@ import { ExerciseMediaService } from "./utils/exerciseMediaService";
 import { CatalogPickerModal } from "./modals/CatalogPickerModal";
 import { CatalogBrowseModal } from "./modals/CatalogBrowseModal";
 import { ConfirmChoiceModal } from "./modals/ConfirmChoiceModal";
+import { ExerciseLibraryModal } from "./modals/ExerciseLibraryModal";
+import { WorkoutHistoryModal } from "./modals/WorkoutHistoryModal";
 import { createIdFromName, generateId } from "./utils/idUtils";
 import {
   absorbOfflineGap,
@@ -238,6 +240,22 @@ export default class WorkoutTrackerPlugin extends Plugin {
       name: "View workout statistics",
       callback: () => {
         new WorkoutStatsModal(this.app, this).open();
+      },
+    });
+
+    this.addCommand({
+      id: "open-exercise-library",
+      name: "Open exercise library",
+      callback: () => {
+        new ExerciseLibraryModal(this.app, this).open();
+      },
+    });
+
+    this.addCommand({
+      id: "view-workout-history",
+      name: "View workout history",
+      callback: () => {
+        new WorkoutHistoryModal(this.app, this).open();
       },
     });
 

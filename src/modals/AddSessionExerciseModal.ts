@@ -11,6 +11,15 @@ import {
 import { CatalogExercise } from "../utils/catalogService";
 import { toTitleCase } from "../utils/titleCase";
 import { CatalogPickerModal } from "./CatalogPickerModal";
+import {
+  createButton,
+  createHint,
+  createList,
+  createRow,
+  createSectionLabel,
+  markPluginModal,
+  renderHeader,
+} from "../utils/uiKit";
 
 const VALID_SET_TYPES = new Set<SetType>(["default", "warmup", "dropset", "myoreps"]);
 
@@ -57,14 +66,13 @@ export class AddSessionExerciseModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Add exercise to session" });
-
-    if (this.restrictToType) {
-      contentEl.createEl("p", {
-        text: `Only ${EXERCISE_TYPE_LABELS[this.restrictToType].toLowerCase()} exercises can be used here.`,
-        cls: "setting-item-description",
-      });
-    }
+    markPluginModal(contentEl);
+    renderHeader(contentEl, {
+      title: "Add exercise",
+      subtitle: this.restrictToType
+        ? `Only ${EXERCISE_TYPE_LABELS[this.restrictToType].toLowerCase()} exercises can be used here`
+        : "From your library, or straight from the catalog",
+    });
 
     new Setting(contentEl).setName("Search").addText((text) => {
       text.setPlaceholder("Type to filter exercises…").onChange((value) => {
@@ -91,7 +99,7 @@ export class AddSessionExerciseModal extends Modal {
           .onClick(() => this.openCatalogSearch())
       );
 
-    this.listEl = contentEl.createDiv({ cls: "workout-add-exercise-list" });
+    this.listEl = contentEl.createDiv({ cls: "wj-picker-list" });
     this.renderList();
   }
 
@@ -124,24 +132,21 @@ export class AddSessionExerciseModal extends Modal {
     );
 
     if (filtered.length === 0 && !this.searchQuery.trim()) {
-      this.listEl.createEl("p", { text: "No exercises found.", cls: "workout-add-exercise-empty" });
+      createHint(this.listEl, "No exercises in your library yet. Type a name to search the catalog.");
       return;
     }
 
+    const list = createList(this.listEl);
     filtered.forEach((ex) => {
-      const item = this.listEl.createDiv({ cls: "workout-add-exercise-item" });
-      item.createSpan({ text: ex.name, cls: "workout-add-exercise-name" });
-      if (ex.muscleGroups?.length) {
-        item.createEl("small", {
-          text: ex.muscleGroups.join(", "),
-          cls: "workout-add-exercise-muscles",
-        });
-      }
-      item.addEventListener("click", () => {
-        void (async () => {
-          this.onAdd(await this.buildSessionExercise(ex));
-          this.close();
-        })();
+      createRow(list, {
+        title: ex.name,
+        meta: ex.muscleGroups?.length ? ex.muscleGroups.join(", ") : undefined,
+        onClick: () => {
+          void (async () => {
+            this.onAdd(await this.buildSessionExercise(ex));
+            this.close();
+          })();
+        },
       });
     });
 
@@ -185,36 +190,34 @@ export class AddSessionExerciseModal extends Modal {
       .slice(0, 8);
 
     if (matches.length) {
-      this.listEl.createEl("p", {
-        text: ownCount ? "From the exercise catalog" : "Not in your library yet — from the catalog",
-        cls: "workout-add-exercise-group-label",
-      });
+      const label = createSectionLabel(
+        this.listEl,
+        ownCount ? "From the exercise catalog" : "Not in your library yet"
+      );
+      label.addClass("wj-picker-group-label");
 
+      const catalogList = createList(this.listEl);
       for (const record of matches) {
-        const item = this.listEl.createDiv({
-          cls: "workout-add-exercise-item workout-add-exercise-item-catalog",
+        const { row } = createRow(catalogList, {
+          title: toTitleCase(record.name),
+          meta: [record.equipment, record.target].filter(Boolean).join(", "),
+          muted: true,
+          onClick: () => {
+            void this.importAndAdd(record);
+          },
         });
-        item.createSpan({
-          text: toTitleCase(record.name),
-          cls: "workout-add-exercise-name",
-        });
-        item.createEl("small", {
-          text: [record.equipment, record.target].filter(Boolean).join(", "),
-          cls: "workout-add-exercise-muscles",
-        });
-        item.addEventListener("click", () => {
-          void this.importAndAdd(record);
-        });
+        row.addClass("wj-row-catalog");
       }
     }
 
-    const createBtn = this.listEl.createEl("button", {
-      text: `Create "${query}" as new exercise`,
-      cls: "workout-add-exercise-create-new",
+    createButton(this.listEl, {
+      label: `Create "${query}" as new exercise`,
+      variant: "ghost",
+      icon: "plus",
+      onClick: () => {
+        void this.createAndAddExercise(query);
+      },
     });
-    createBtn.onclick = async () => {
-      await this.createAndAddExercise(query);
-    };
   }
 
   private async importAndAdd(record: CatalogExercise): Promise<void> {

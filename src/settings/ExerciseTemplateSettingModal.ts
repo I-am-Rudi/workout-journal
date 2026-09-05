@@ -1,6 +1,12 @@
 import { App, Modal, Notice, Setting } from 'obsidian';
 import { ExerciseTemplate } from '../types';
 import WorkoutTrackerPlugin from '../plugin';
+import {
+	createActionBar,
+	createButton,
+	markPluginModal,
+	renderHeader,
+} from '../utils/uiKit';
 
 export class ExerciseTemplateSettingModal extends Modal {
 	plugin: WorkoutTrackerPlugin;
@@ -22,7 +28,11 @@ export class ExerciseTemplateSettingModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 
-		contentEl.createEl("h2", { text: "Add exercise template" });
+		markPluginModal(contentEl);
+		renderHeader(contentEl, {
+			title: "Add exercise template",
+			subtitle: "A reusable set table you can insert into any note",
+		});
 
 		new Setting(contentEl)
 			.setName('Exercise name')

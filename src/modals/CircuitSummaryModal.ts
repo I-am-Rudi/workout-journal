@@ -1,6 +1,15 @@
 import { App, Modal, Setting } from "obsidian";
 import { CircuitTimingAdjustment, WorkoutSession } from "../types";
 import { formatSeconds } from "../utils/exerciseTypeUtils";
+import {
+  createActionBar,
+  createButton,
+  createNote,
+  createStatGrid,
+  createStatTile,
+  markPluginModal,
+  renderHeader,
+} from "../utils/uiKit";
 
 export interface CircuitFinishResult {
   adjustments: CircuitTimingAdjustment[];
@@ -50,7 +59,11 @@ export class CircuitSummaryModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Circuit complete" });
+    markPluginModal(contentEl);
+    renderHeader(contentEl, {
+      title: "Circuit complete",
+      subtitle: this.session.name,
+    });
 
     const totalSeconds = [...this.performed.values()]
       .flat()
@@ -59,18 +72,17 @@ export class CircuitSummaryModal extends Modal {
       0,
       ...[...this.performed.values()].map((seconds) => seconds.length)
     );
-    contentEl.createEl("p", {
-      text: `${roundsDone} of ${this.session.circuitRounds ?? 1} round${
-        (this.session.circuitRounds ?? 1) === 1 ? "" : "s"
-      } · ${formatSeconds(totalSeconds)} of work logged.`,
-      cls: "setting-item-description",
-    });
+    const plannedRounds = this.session.circuitRounds ?? 1;
+
+    const stats = createStatGrid(contentEl);
+    createStatTile(stats, "Rounds", `${roundsDone}/${plannedRounds}`);
+    createStatTile(stats, "Work logged", formatSeconds(totalSeconds));
 
     new Setting(contentEl).setName("Time windows").setHeading();
-    contentEl.createEl("p", {
-      text: "These times are saved to the routine for next time. The workout log keeps what you actually performed.",
-      cls: "setting-item-description",
-    });
+    createNote(
+      contentEl,
+      "These times are saved to the routine for next time. The workout log keeps what you actually performed."
+    );
 
     this.adjustments.forEach((adjustment, index) => {
       const rounds = this.performed.get(index) ?? [];
@@ -116,22 +128,26 @@ export class CircuitSummaryModal extends Modal {
         );
     }
 
-    new Setting(contentEl)
-      .addButton((btn) =>
-        btn.setButtonText("Save workout").setCta().onClick(() => {
-          this.onSave({
-            adjustments: this.adjustments,
-            updateRoutine: this.updateRoutine,
-          });
-          this.close();
-        })
-      )
-      .addButton((btn) =>
-        btn.setButtonText("Discard").setWarning().onClick(() => {
-          this.onDiscard();
-          this.close();
-        })
-      );
+    const actions = createActionBar(contentEl);
+    createButton(actions, {
+      label: "Save workout",
+      variant: "primary",
+      onClick: () => {
+        this.onSave({
+          adjustments: this.adjustments,
+          updateRoutine: this.updateRoutine,
+        });
+        this.close();
+      },
+    });
+    createButton(actions, {
+      label: "Discard",
+      variant: "danger",
+      onClick: () => {
+        this.onDiscard();
+        this.close();
+      },
+    });
   }
 
   onClose() {

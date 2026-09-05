@@ -23,173 +23,606 @@
     --wj-success-soft: color-mix(in srgb, var(--color-green) 14%, transparent);
 }
 
-/* Workout Tracker Plugin Styles */
+/* ── Shared surface kit ─────────────────────────────────────
+   Every modal, picker and settings page is assembled from the pieces below, so
+   the whole plugin reads as one app rather than a session view bolted onto
+   Obsidian's defaults: a flat header, small uppercase section labels, filled
+   cards and rows with no decorative borders, and one graded button set.
 
-.workout-tracker-ribbon-class {
-    color: var(--text-muted);
-}
+   Action weight runs primary (near-solid accent) → secondary (accent wash) →
+   quiet (transparent) → danger (error wash), matching the session view. */
 
-.workout-exercise-item {
+/* Header: title block on the left, optional icon actions on the right. */
+.wj-header {
     display: flex;
+    align-items: flex-start;
     justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
+    gap: var(--wj-gap);
+    padding-bottom: var(--wj-pad-card);
+    margin-bottom: var(--wj-gap-loose);
     border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.workout-exercise-item:last-child {
-    border-bottom: none;
+.wj-header-titles {
+    min-width: 0;
 }
 
-.workout-exercise-item button {
-    margin-left: 10px;
-    padding: 4px 8px;
-    font-size: 12px;
-}
-
-.workout-set-container {
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 6px;
-    padding: 16px;
-    margin: 10px 0;
-    background-color: var(--background-secondary);
-}
-
-.workout-set-container h5 {
-    margin: 0 0 10px 0;
-    color: var(--text-accent);
+.wj-title {
+    font-size: var(--font-ui-large);
     font-weight: 600;
+    line-height: 1.2;
+    color: var(--text-normal);
 }
 
-.workout-set-container .setting-item {
-    border-top: none;
-    padding: 8px 0;
-}
-
-.workout-set-container .setting-item:first-child {
-    padding-top: 0;
-}
-
-.workout-set-container .setting-item:last-child {
-    padding-bottom: 0;
-}
-
-/* Modal improvements */
-.modal {
-    max-width: 100vw;
-    box-sizing: border-box;
-}
-
-.modal .workout-exercise-item {
-    background-color: var(--background-secondary);
-    padding: 12px;
-    border-radius: 4px;
-    margin: 8px 0;
-}
-
-.modal .workout-set-container {
-    margin: 15px 0;
-}
-
-/* Settings tab improvements */
-.setting-item .setting-item-description {
+.wj-subtitle {
+    margin-top: 2px;
+    font-size: var(--font-ui-smaller);
     color: var(--text-muted);
-    font-size: 13px;
-    line-height: 1.3;
 }
 
-/* Exercise template styles */
-.exercise-template-item {
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    padding: 12px;
-    margin: 8px 0;
-    background-color: var(--background-secondary);
+.wj-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--wj-gap-tight);
+    flex: 0 0 auto;
 }
 
-.exercise-template-item .exercise-type {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 12px;
+/* Sections: an uppercase label over a stack of rows or cards. */
+.wj-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* A section label with an action (usually "add") on the far right. */
+.wj-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.wj-section-label {
+    font-size: var(--wj-label-size);
+    font-weight: 600;
+    letter-spacing: var(--wj-label-tracking);
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: var(--wj-gap-tight);
+}
+
+/* Inside a section or a section header the container's gap already spaces it. */
+.wj-section > .wj-section-label,
+.wj-section-header .wj-section-label {
+    margin-bottom: 0;
+}
+
+.wj-card {
+    padding: var(--wj-pad-card);
+    border: none;
+    border-radius: var(--wj-radius-card);
+    background: var(--wj-surface);
+}
+
+.wj-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* A row is the plugin's basic list item: a title, a muted meta line and a
+   cluster of controls that never competes with the text. */
+.wj-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--wj-gap);
+    min-height: 44px;
+    padding: 10px 10px 10px 12px;
+    border-radius: var(--wj-radius-control);
+    /* The home page overrides the fill: its rows sit inside plan cards, which
+       are already on the secondary background. */
+    background: var(--wj-row-bg, var(--wj-surface));
+}
+
+.wj-row:hover {
+    background: var(--background-modifier-hover);
+}
+
+.wj-row-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.wj-row-title-line {
+    display: flex;
+    align-items: center;
+    gap: var(--wj-gap-tight);
+    min-width: 0;
+}
+
+.wj-row-title {
+    font-weight: 500;
+    color: var(--text-normal);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wj-row-meta {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wj-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+
+.wj-row-actions .wj-btn {
+    flex: 0 0 auto;
+}
+
+.wj-row-is-muted .wj-row-title {
+    color: var(--text-muted);
+}
+
+/* Tags stay pill-shaped; controls are boxes. */
+.wj-chip {
+    flex: 0 0 auto;
+    padding: 1px 7px;
+    border-radius: var(--wj-radius-pill);
     font-size: 11px;
     font-weight: 500;
-    text-transform: uppercase;
-    margin-right: 8px;
+    background: var(--background-modifier-border);
+    color: var(--text-muted);
 }
 
-.exercise-template-item .exercise-type.strength {
-    background-color: var(--color-red);
-    color: white;
-}
-
-.exercise-template-item .exercise-type.cardio {
-    background-color: var(--color-blue);
-    color: white;
-}
-
-.exercise-template-item .exercise-type.flexibility {
-    background-color: var(--color-green);
-    color: white;
-}
-
-.exercise-template-item .exercise-type.other {
-    background-color: var(--color-yellow);
+.wj-chip-accent {
+    background: var(--interactive-accent);
     color: var(--text-on-accent);
 }
 
-.exercise-template-item .muscle-groups {
+/* Buttons ───────────────────────────────────────────────── */
+
+.wj-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: var(--wj-touch);
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--wj-radius-control);
+    box-shadow: none;
+    font-size: var(--font-ui-small);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.wj-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.wj-btn-icon {
+    display: flex;
+    align-items: center;
+}
+
+.wj-btn-icon .svg-icon {
+    width: 16px;
+    height: 16px;
+}
+
+/* Softened a touch so a modal's confirm stays calm next to its cancel. */
+.wj-btn-primary {
+    background: color-mix(in srgb, var(--interactive-accent) 88%, var(--background-primary));
+    color: var(--text-on-accent);
+}
+
+.wj-btn-primary:hover:not(:disabled) {
+    background: var(--interactive-accent);
+}
+
+/* Full accent, for the one button on a page that is the reason to be there. */
+.wj-btn-accent {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.wj-btn-accent:hover:not(:disabled) {
+    background: var(--interactive-accent-hover);
+}
+
+.wj-btn-secondary {
+    background: var(--wj-accent-soft);
+    color: var(--text-normal);
+}
+
+.wj-btn-secondary:hover:not(:disabled) {
+    background: var(--wj-accent-soft-hover);
+}
+
+.wj-btn-quiet {
+    background: transparent;
     color: var(--text-muted);
-    font-size: 12px;
-    margin-top: 4px;
 }
 
-/* Responsive design for smaller screens */
-@media (max-width: 768px) {
-    .workout-exercise-item {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .workout-exercise-item button {
-        margin-top: 8px;
-        margin-left: 0;
-        align-self: flex-end;
-    }
-
-    .workout-exercise-item > div:last-child {
-        align-self: flex-end;
-        display: flex;
-        justify-content: flex-end;
-    }
-    
-    .workout-set-container {
-        padding: 12px;
-    }
+.wj-btn-quiet:hover:not(:disabled) {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
 }
 
-/* Animation for smooth interactions */
-.workout-exercise-item,
-.workout-set-container,
-.exercise-template-item {
-    transition: all 0.2s ease-in-out;
+.wj-btn-danger {
+    background: var(--wj-danger-soft);
+    color: var(--text-error);
 }
 
-.workout-exercise-item:hover,
-.exercise-template-item:hover {
-    background-color: var(--background-modifier-hover);
+.wj-btn-danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--text-error) 20%, transparent);
+}
+
+/* Full-width call to action, as on the home page. */
+.wj-btn-block {
+    width: 100%;
+    min-height: 46px;
+    padding: 14px 16px;
+    border-radius: var(--wj-radius-card);
+    font-size: var(--font-ui-medium);
+}
+
+/* A bigger button carries a bigger glyph. */
+.wj-btn-block .wj-btn-icon .svg-icon {
+    width: 18px;
+    height: 18px;
+}
+
+/* Dashed ghost button: adds a row without competing with the list above it. */
+.wj-btn-ghost {
+    width: 100%;
+    border: 1px dashed var(--background-modifier-border);
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.wj-btn-ghost:hover:not(:disabled) {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.wj-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: var(--wj-radius-control);
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.wj-icon-btn:hover:not(:disabled) {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.wj-icon-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.wj-icon-btn .svg-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.wj-icon-btn-danger:hover:not(:disabled) {
+    background: var(--wj-danger-soft);
+    color: var(--text-error);
+}
+
+/* Footer action bar. Buttons share the width so the row reads as one bar. */
+.wj-actions {
+    display: flex;
+    gap: var(--wj-gap);
+    margin-top: var(--wj-gap-loose);
+}
+
+.wj-actions .wj-btn {
+    flex: 1 1 0;
+    min-height: 44px;
+    border-radius: var(--wj-radius-card);
+}
+
+/* In the footer the quiet button still needs an edge, or half the bar reads as
+   empty space with a word in it. */
+.wj-actions .wj-btn-quiet {
+    background: var(--wj-surface);
+}
+
+.wj-actions .wj-btn-quiet:hover:not(:disabled) {
+    background: var(--background-modifier-hover);
+}
+
+.wj-back {
+    align-self: flex-start;
+    margin-bottom: var(--wj-gap);
+    padding-left: 10px;
+}
+
+/* Supporting text and empty states ──────────────────────── */
+
+.wj-note {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+    line-height: 1.45;
+    margin: 0 0 var(--wj-gap);
+}
+
+.wj-note-inset {
+    padding: 10px 12px;
+    border-radius: var(--wj-radius-control);
+    background: var(--wj-surface);
+}
+
+.wj-note-accent {
+    padding: 10px 12px;
+    border-left: 3px solid var(--interactive-accent);
+    border-radius: var(--wj-radius-control);
+    background: var(--wj-accent-soft);
+    color: var(--text-normal);
+}
+
+.wj-note-warning {
+    color: var(--text-error);
+    white-space: pre-wrap;
+}
+
+.wj-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--wj-gap-tight);
+    padding: 20px 16px;
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: var(--wj-radius-card);
+    text-align: center;
+}
+
+.wj-empty-title {
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.wj-empty-body {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.wj-empty-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+/* Inline placeholder for a list that is merely empty, not unconfigured. */
+.wj-hint {
+    padding: 4px 2px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+/* Stat tiles ────────────────────────────────────────────── */
+
+.wj-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--wj-gap-tight);
+}
+
+.wj-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 14px;
+    border-radius: var(--wj-radius-card);
+    background: var(--wj-surface);
+}
+
+.wj-stat-label {
+    font-size: var(--wj-label-size);
+    font-weight: 600;
+    letter-spacing: var(--wj-label-tracking);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.wj-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-normal);
+}
+
+.wj-stat-unit {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* Segmented control: the flat replacement for underlined tabs. */
+.wj-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    margin-bottom: var(--wj-gap);
+    border-radius: var(--wj-radius-control);
+    background: var(--wj-surface);
+}
+
+.wj-tab {
+    flex: 1 1 0;
+    min-height: 30px;
+    padding: 5px 10px;
+    border: none;
+    border-radius: var(--wj-radius-control);
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.wj-tab:hover {
+    color: var(--text-normal);
+}
+
+.wj-tab-active {
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-weight: 600;
+}
+
+/* Obsidian form rows inside plugin surfaces ─────────────────
+   Forms are still built with `Setting`, so the row itself is restyled rather
+   than rebuilt: a filled box with a sunken control, no separator lines. */
+
+.wj-modal .setting-item,
+.wj-settings .setting-item {
+    align-items: center;
+    gap: var(--wj-gap);
+    padding: 10px 12px;
+    margin-bottom: var(--wj-gap-tight);
+    border-top: none;
+    border-radius: var(--wj-radius-control);
+    background: var(--wj-surface);
+}
+
+.wj-modal .setting-item-name,
+.wj-settings .setting-item-name {
+    font-weight: 600;
+}
+
+.wj-modal .setting-item-description,
+.wj-settings .setting-item-description {
+    font-size: var(--font-ui-smaller);
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+.wj-modal .setting-item-control,
+.wj-settings .setting-item-control {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--wj-gap-tight);
+}
+
+/* Headings become the section label used everywhere else. */
+.wj-modal .setting-item-heading,
+.wj-settings .setting-item-heading {
+    padding: 0;
+    margin: var(--wj-gap-loose) 0 var(--wj-gap-tight);
+    background: none;
+    border: none;
+}
+
+.wj-modal .setting-item-heading .setting-item-name,
+.wj-settings .setting-item-heading .setting-item-name {
+    font-size: var(--wj-label-size);
+    font-weight: 600;
+    letter-spacing: var(--wj-label-tracking);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.wj-modal .setting-item input[type="text"],
+.wj-modal .setting-item input[type="number"],
+.wj-modal .setting-item input[type="search"],
+.wj-modal .setting-item textarea,
+.wj-modal .setting-item select,
+.wj-settings .setting-item input[type="text"],
+.wj-settings .setting-item input[type="number"],
+.wj-settings .setting-item input[type="search"],
+.wj-settings .setting-item textarea,
+.wj-settings .setting-item select {
+    border: none;
+    box-shadow: none;
+    border-radius: var(--wj-radius-control);
+    background: var(--wj-surface-sunken);
+}
+
+.wj-modal .setting-item input:focus,
+.wj-modal .setting-item textarea:focus,
+.wj-settings .setting-item input:focus,
+.wj-settings .setting-item textarea:focus {
+    box-shadow: 0 0 0 2px var(--wj-accent-soft-hover);
+}
+
+/* Buttons Obsidian renders into a form row follow the same grading. The icon
+   buttons `addExtraButton` produces are left alone — they are not filled. */
+.wj-modal .setting-item-control button:not(.clickable-icon),
+.wj-settings .setting-item-control button:not(.clickable-icon) {
+    min-height: var(--wj-touch);
+    border: none;
+    border-radius: var(--wj-radius-control);
+    box-shadow: none;
+    font-weight: 600;
+    background: var(--wj-accent-soft);
+    color: var(--text-normal);
+}
+
+.wj-modal .setting-item-control button:not(.clickable-icon):hover:not(:disabled),
+.wj-settings .setting-item-control button:not(.clickable-icon):hover:not(:disabled) {
+    background: var(--wj-accent-soft-hover);
+}
+
+.wj-modal .setting-item-control button.mod-cta,
+.wj-settings .setting-item-control button.mod-cta {
+    background: color-mix(in srgb, var(--interactive-accent) 88%, var(--background-primary));
+    color: var(--text-on-accent);
+}
+
+.wj-modal .setting-item-control button.mod-cta:hover:not(:disabled),
+.wj-settings .setting-item-control button.mod-cta:hover:not(:disabled) {
+    background: var(--interactive-accent);
+}
+
+.wj-modal .setting-item-control button.mod-warning,
+.wj-settings .setting-item-control button.mod-warning {
+    background: var(--wj-danger-soft);
+    color: var(--text-error);
+}
+
+.wj-modal .setting-item-control button.mod-warning:hover:not(:disabled),
+.wj-settings .setting-item-control button.mod-warning:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--text-error) 20%, transparent);
+}
+
+.wj-modal .setting-item-control .clickable-icon,
+.wj-settings .setting-item-control .clickable-icon {
+    border-radius: var(--wj-radius-control);
 }
 
 /* ── Chart styles ──────────────────────────────────────────── */
 
-.wt-chart-section {
-    margin: 16px 0;
-}
-
 .wt-chart-container {
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 8px;
-    background: var(--background-secondary);
     padding: 12px 8px 8px;
+    border: none;
+    border-radius: var(--wj-radius-card);
+    background: var(--wj-surface);
     overflow: hidden;
 }
 
@@ -255,38 +688,10 @@
     fill: var(--interactive-accent);
 }
 
-/* Custom button styles */
-.workout-tracker-button {
-    background-color: var(--interactive-accent);
-    color: var(--text-on-accent);
-    border: none;
-    border-radius: 4px;
-    padding: 8px 16px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: background-color 0.2s ease;
-}
-
-.workout-tracker-button:hover {
-    background-color: var(--interactive-accent-hover);
-}
-
-.workout-tracker-button.mod-warning {
-    background-color: var(--color-red);
-}
-
-.workout-tracker-button.mod-warning:hover {
-    background-color: var(--color-red);
-    opacity: 0.8;
-}
-
-.workout-edit-button-container {
-    margin-top: 20px;
-}
-
-.workout-edit-exercise-btn {
-    margin-right: 8px;
+/* Modal sizing */
+.modal {
+    max-width: 100vw;
+    box-sizing: border-box;
 }
 
 .note-template-frontmatter-ta,
@@ -309,11 +714,6 @@
     max-width: 640px;
     margin: 0 auto;
     box-sizing: border-box;
-}
-
-.workout-session-view .setting-item-control {
-    max-width: 100%;
-    flex-wrap: wrap;
 }
 
 /* Header: title block on the left, the workout clock on the right. */
@@ -600,110 +1000,6 @@
     font-size: 10px;
 }
 
-/* Add Exercise modal list */
-.workout-add-exercise-list {
-    max-height: 400px;
-    overflow-y: auto;
-    margin-top: 8px;
-}
-
-.workout-add-exercise-item {
-    padding: 10px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.workout-add-exercise-item:last-child {
-    border-bottom: none;
-}
-
-.workout-add-exercise-item:hover {
-    background-color: var(--background-modifier-hover);
-}
-
-.workout-add-exercise-name {
-    font-weight: 500;
-    display: block;
-}
-
-.workout-add-exercise-muscles {
-    color: var(--text-muted);
-    font-size: 12px;
-    display: block;
-    margin-top: 2px;
-}
-
-.workout-add-exercise-empty {
-    color: var(--text-muted);
-    text-align: center;
-    padding: 16px;
-}
-
-/* Routine template modal – exercise picker */
-.wt-template-exercises-label {
-    margin: 12px 0 4px 0;
-    font-weight: 600;
-    font-size: 13px;
-    color: var(--text-muted);
-}
-
-.wt-template-selected-exercises {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    min-height: 32px;
-    padding: 4px 0;
-    margin-bottom: 4px;
-}
-
-.wt-template-exercise-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-    border-radius: 14px;
-    padding: 3px 10px 3px 12px;
-    font-size: 13px;
-    font-weight: 500;
-}
-
-.wt-template-exercise-chip-remove {
-    background: none;
-    border: none;
-    color: var(--text-on-accent);
-    cursor: pointer;
-    font-size: 12px;
-    padding: 0;
-    opacity: 0.75;
-    line-height: 1;
-}
-
-.wt-template-exercise-chip-remove:hover {
-    opacity: 1;
-}
-
-/* Quick-create button shown when no exercises match the search */
-.workout-add-exercise-create-new {
-    display: block;
-    width: calc(100% - 32px);
-    margin: 8px 16px;
-    padding: 10px 12px;
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    text-align: center;
-}
-
-.workout-add-exercise-create-new:hover {
-    background: var(--interactive-accent-hover);
-}
-
 /* Global exercise notes block (read-only) */
 .workout-session-exercise-notes {
     background: color-mix(in srgb, var(--color-blue) 10%, transparent);
@@ -801,15 +1097,6 @@
         max-width: 36px;
         width: auto;
         font-size: 14px;
-    }
-
-    /* Set container inputs fill full width */
-    .workout-set-container {
-        padding: 8px;
-    }
-
-    .workout-set-container .setting-item-control input {
-        width: 100%;
     }
 
     /* Mobile set card layout */
@@ -998,12 +1285,6 @@
     box-sizing: border-box;
 }
 
-.exercise-note-modal-title {
-    margin: 0 0 12px 0;
-    font-size: 18px;
-    line-height: 1.3;
-}
-
 .exercise-note-modal-error {
     color: var(--text-error);
 }
@@ -1135,35 +1416,9 @@
 
 /* ── Session actions ───────────────────────────────────────── */
 
-.workout-session-section-label {
-    font-size: var(--wj-label-size);
-    font-weight: 600;
-    letter-spacing: var(--wj-label-tracking);
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-bottom: var(--wj-gap-tight);
-}
-
-/* Ghost button inside a card: adds a set without competing with the data. */
-.workout-session-add-set {
-    display: block;
-    width: 100%;
-    min-height: var(--wj-touch);
+/* The kit's ghost button, sitting under the set table it adds a row to. */
+.workout-session-card > .wj-btn-ghost {
     margin-top: var(--wj-gap-tight);
-    padding: 8px 12px;
-    border: 1px dashed var(--background-modifier-border);
-    border-radius: var(--wj-radius-control);
-    background: transparent;
-    box-shadow: none;
-    color: var(--text-muted);
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.workout-session-add-set:hover {
-    background: var(--background-modifier-hover);
-    color: var(--text-normal);
 }
 
 .workout-session-add-exercise {
@@ -1189,16 +1444,6 @@
     background: color-mix(in srgb, var(--interactive-accent) 18%, transparent);
 }
 
-.workout-session-btn-icon {
-    display: flex;
-    align-items: center;
-}
-
-.workout-session-btn-icon .svg-icon {
-    width: 16px;
-    height: 16px;
-}
-
 .workout-session-notes-block {
     margin-bottom: var(--wj-gap-loose);
 }
@@ -1209,37 +1454,8 @@
     gap: var(--wj-gap);
 }
 
-.workout-session-action {
-    width: 100%;
-    min-height: 46px;
-    padding: 14px 16px;
-    border: none;
-    border-radius: var(--wj-radius-card);
-    box-shadow: none;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-/* Finish carries the accent, softened a touch so it stays calm; cancel gets a
-   red wash rather than a red slab; adding an exercise only hints at the accent. */
-.workout-session-action-primary {
-    background: color-mix(in srgb, var(--interactive-accent) 88%, var(--background-primary));
-    color: var(--text-on-accent);
-}
-
-.workout-session-action-primary:hover {
-    background: var(--interactive-accent);
-}
-
-.workout-session-action-danger {
-    background: var(--wj-danger-soft);
-    color: var(--text-error);
-}
-
-.workout-session-action-danger:hover {
-    background: color-mix(in srgb, var(--text-error) 20%, transparent);
-}
+/* Finish and cancel are the kit's primary and danger buttons at block size;
+   adding an exercise sits between them, hinting at the accent without taking it. */
 
 /* ── Finish workout modal ──────────────────────────────────── */
 
@@ -1454,43 +1670,20 @@
 }
 
 /* ── Home page ─────────────────────────────────────────────── */
-
-.workout-home-modal {
-    max-width: 560px;
-}
-
-.workout-home-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    padding-bottom: 14px;
-    margin-bottom: 4px;
-    border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.workout-home-titles {
-    min-width: 0;
-}
-
-.workout-home-title {
-    font-size: var(--font-ui-large);
-    font-weight: 600;
-    color: var(--text-normal);
-    line-height: 1.2;
-}
-
-.workout-home-subtitle {
-    font-size: var(--font-ui-smaller);
-    color: var(--text-muted);
-    margin-top: 2px;
-}
+/* Everything the home page shares with the rest of the plugin — the header,
+   section labels, rows, chips, icon buttons and buttons — comes from the shared
+   surface kit above. What is left here is what only this page has: the resume
+   card, the collapsible plan folders, and the quick links. */
 
 .workout-home-body {
     display: flex;
     flex-direction: column;
     gap: 22px;
-    padding-top: 18px;
+    /* The rest of the gap under the header comes from .wj-header's margin. */
+    padding-top: 6px;
+    /* Routine rows sit inside plan cards, which are already on the secondary
+       background, so here a row takes the sunken fill instead. */
+    --wj-row-bg: var(--background-primary);
 }
 
 /* Quick start */
@@ -1535,102 +1728,16 @@
     color: var(--text-muted);
 }
 
-.workout-home-resume-btn {
-    flex: 0 0 auto;
-    min-height: var(--wj-touch);
-    padding: 8px 16px;
-    border: none;
-    box-shadow: none;
-    border-radius: var(--wj-radius-control);
-    cursor: pointer;
-    font-weight: 600;
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-}
-
-.workout-home-resume-btn:hover {
-    background: var(--interactive-accent-hover);
-}
-
-.workout-home-primary-btn {
+/* The three destinations under the start button. */
+.workout-home-links {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    width: 100%;
-    min-height: 46px;
-    padding: 14px 16px;
-    border: none;
-    font-size: var(--font-ui-medium);
-    font-weight: 600;
-    border-radius: var(--wj-radius-card);
-    cursor: pointer;
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-    box-shadow: none;
+    gap: var(--wj-gap-tight);
 }
 
-.workout-home-primary-btn:hover {
-    background: var(--interactive-accent-hover);
-}
-
-.workout-home-btn-icon {
-    display: flex;
-    align-items: center;
-}
-
-.workout-home-btn-icon .svg-icon {
-    width: 18px;
-    height: 18px;
-}
-
-/* Sections */
-
-.workout-home-section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.workout-home-section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-}
-
-.workout-home-section-title {
-    font-size: var(--wj-label-size);
-    font-weight: 600;
-    letter-spacing: var(--wj-label-tracking);
-    text-transform: uppercase;
-    color: var(--text-muted);
-}
-
-.workout-home-icon-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border: none;
-    border-radius: var(--wj-radius-control);
-    cursor: pointer;
-    background: transparent;
-    box-shadow: none;
-    color: var(--text-muted);
-}
-
-.workout-home-icon-btn:hover {
-    background: var(--background-modifier-hover);
-    color: var(--text-normal);
-}
-
-.workout-home-icon-btn .svg-icon {
-    width: 16px;
-    height: 16px;
+.workout-home-links .wj-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 10px;
 }
 
 /* Plan folders */
@@ -1711,7 +1818,7 @@
 
 /* The plan's own buttons run the full height of the folder row next to them,
    so the three hit boxes read as one bar. */
-.workout-home-plan-actions .workout-home-icon-btn {
+.workout-home-plan-actions .wj-icon-btn {
     height: auto;
     min-height: var(--wj-touch);
 }
@@ -1727,161 +1834,7 @@
     display: none;
 }
 
-/* Routine rows */
-
-.workout-home-list {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.workout-home-routine {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    min-height: 44px;
-    padding: 10px 10px 10px 12px;
-    border-radius: var(--wj-radius-control);
-    background: var(--background-primary);
-}
-
-.workout-home-routine:hover {
-    background: var(--background-modifier-hover);
-}
-
-.workout-home-routine-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-}
-
-.workout-home-routine-name-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-}
-
-.workout-home-routine-name {
-    font-weight: 500;
-    color: var(--text-normal);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.workout-home-routine-meta {
-    font-size: var(--font-ui-smaller);
-    color: var(--text-muted);
-}
-
-.workout-home-routine-actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex: 0 0 auto;
-}
-
-/* Tags stay pill-shaped; controls are boxes. */
-.workout-home-chip {
-    flex: 0 0 auto;
-    padding: 1px 7px;
-    border-radius: var(--wj-radius-pill);
-    font-size: 11px;
-    font-weight: 500;
-    background: var(--background-modifier-border);
-    color: var(--text-muted);
-}
-
-.workout-home-chip-accent {
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-}
-
-.workout-home-start-btn {
-    flex: 0 0 auto;
-    min-height: var(--wj-touch);
-    padding: 6px 16px;
-    border: none;
-    box-shadow: none;
-    border-radius: var(--wj-radius-control);
-    background: var(--wj-accent-soft);
-    color: var(--text-normal);
-    cursor: pointer;
-    font-weight: 600;
-}
-
-.workout-home-start-btn:hover:not(:disabled) {
-    background: var(--wj-accent-soft-hover);
-}
-
-.workout-home-start-btn:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-
-/* Empty states */
-
-.workout-home-empty {
-    font-size: var(--font-ui-smaller);
-    color: var(--text-muted);
-    padding: 4px 2px;
-}
-
-.workout-home-empty-state {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 20px 16px;
-    border: 1px dashed var(--background-modifier-border);
-    border-radius: var(--wj-radius-card);
-    text-align: center;
-    align-items: center;
-}
-
-.workout-home-empty-title {
-    font-weight: 600;
-    color: var(--text-normal);
-}
-
-.workout-home-empty-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 6px;
-}
-
-
-/* ── Exercise note modal: tabs and history ─────────────────── */
-
-.exercise-note-modal-tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.exercise-note-modal-tab {
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    border-radius: 0;
-    box-shadow: none;
-    padding: 6px 12px;
-    color: var(--text-muted);
-    cursor: pointer;
-}
-
-.exercise-note-modal-tab:hover {
-    color: var(--text-normal);
-}
-
-.exercise-note-modal-tab-active {
-    color: var(--text-normal);
-    border-bottom-color: var(--interactive-accent);
-    font-weight: 600;
-}
+/* ── Exercise note modal: history list ─────────────────────── */
 
 .exercise-history-list {
     display: flex;
@@ -1951,10 +1904,6 @@
     white-space: pre-wrap;
 }
 
-.workout-routine-count-input {
-    width: 70px;
-}
-
 /* ── Exercise catalog ─────────────────────────────────────────────────── */
 
 .wj-catalog-suggestion-name {
@@ -1969,17 +1918,19 @@
 .wj-catalog-browse-list {
   max-height: 40vh;
   overflow-y: auto;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-s);
-  margin-bottom: var(--size-4-3);
+  margin-bottom: var(--wj-gap);
+  border: none;
+  border-radius: var(--wj-radius-card);
+  background: var(--wj-surface);
+  padding: 4px;
 }
 
 .wj-catalog-browse-row {
-  border-bottom: 1px solid var(--background-modifier-border);
+  border-radius: var(--wj-radius-control);
 }
 
-.wj-catalog-browse-row:last-child {
-  border-bottom: none;
+.wj-catalog-browse-row:hover {
+  background-color: var(--background-modifier-hover);
 }
 
 .wj-catalog-browse-row.is-selected {
@@ -1994,8 +1945,8 @@
 .wj-catalog-browse-item {
   display: flex;
   align-items: flex-start;
-  gap: var(--size-4-2);
-  padding: var(--size-4-2) var(--size-4-3);
+  gap: var(--wj-gap);
+  padding: 9px 12px;
   cursor: pointer;
 }
 
@@ -2016,20 +1967,6 @@
   font-size: var(--font-ui-smaller);
 }
 
-/* Catalog results in the session picker sit below the user's own exercises. */
-
-.workout-add-exercise-group-label {
-  color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin: var(--size-4-3) 0 var(--size-4-1);
-}
-
-.workout-add-exercise-item-catalog .workout-add-exercise-name {
-  color: var(--text-muted);
-}
-
 /* ── Exercise note description tab ────────────────────────────────────── */
 
 .exercise-note-modal-description {
@@ -2041,4 +1978,189 @@
 .exercise-note-modal-description img {
   max-width: 100%;
   border-radius: var(--radius-s);
+}
+
+/* ── Pickers: search lists shared by the exercise and history views ───── */
+
+.wj-picker-list {
+    max-height: 46vh;
+    overflow-y: auto;
+    margin-top: var(--wj-gap-tight);
+    /* Room for the focus ring on the last row inside the scroller. */
+    padding-bottom: 2px;
+}
+
+/* Group headings inside a scrolling picker need air above them. */
+.wj-picker-group-label {
+    margin: var(--wj-gap) 0 var(--wj-gap-tight);
+}
+
+.wj-row-clickable {
+    cursor: pointer;
+}
+
+/* Catalog hits sit under the user's own exercises, dimmed until hovered. */
+.wj-row-catalog {
+    background: transparent;
+}
+
+.wj-row-catalog:hover {
+    background: var(--background-modifier-hover);
+}
+
+.wj-row-catalog .wj-row-title {
+    font-weight: 400;
+}
+
+/* ── Set editor rows (workout log modals) ─────────────────────────────── */
+
+.wj-set-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: var(--wj-gap);
+}
+
+.wj-set-row {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--wj-gap-tight);
+    padding: 8px 10px;
+    border-radius: var(--wj-radius-control);
+    background: var(--wj-surface);
+}
+
+.wj-set-index {
+    flex: 0 0 auto;
+    /* Lines up with the middle of the inputs, which sit under their labels. */
+    padding-bottom: 11px;
+    font-size: var(--wj-label-size);
+    font-weight: 600;
+    letter-spacing: var(--wj-label-tracking);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.wj-set-fields {
+    display: flex;
+    flex: 1 1 auto;
+    gap: 4px;
+    min-width: 0;
+}
+
+.wj-set-field {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.wj-set-field-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: var(--wj-label-tracking);
+    text-transform: uppercase;
+    color: var(--text-faint);
+    text-align: center;
+}
+
+.wj-set-field input {
+    width: 100%;
+    min-height: var(--wj-touch);
+    padding: 4px 6px;
+    border: none;
+    border-radius: var(--wj-radius-control);
+    box-shadow: none;
+    background: var(--wj-surface-sunken);
+    font-size: 13px;
+    text-align: center;
+}
+
+/* A number field that lives inside a row's control cluster. */
+.wj-inline-input {
+    width: 58px;
+    min-height: var(--wj-touch);
+    padding: 4px 8px;
+    border: none;
+    border-radius: var(--wj-radius-control);
+    box-shadow: none;
+    background: var(--wj-surface-sunken);
+    font-size: 13px;
+    text-align: center;
+}
+
+.wj-inline-input-wide {
+    width: 96px;
+    text-align: left;
+}
+
+/* A row whose controls are fields rather than buttons needs the whole width on
+   a phone, so the name is not squeezed to two characters. */
+@media (max-width: 520px) {
+    .wj-row-editable {
+        flex-wrap: wrap;
+    }
+
+    .wj-row-editable .wj-row-info {
+        flex: 1 1 100%;
+    }
+
+    .wj-row-editable .wj-row-actions {
+        flex: 1 1 100%;
+        justify-content: flex-end;
+    }
+}
+
+/* ── Removable chips (template editors) ───────────────────────────────── */
+
+.wj-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--wj-gap-tight);
+    margin-bottom: var(--wj-gap);
+}
+
+.wj-chip-removable {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 2px 2px 10px;
+    background: var(--wj-accent-soft);
+    color: var(--text-normal);
+}
+
+.wj-chip-removable .wj-icon-btn {
+    width: 22px;
+    height: 22px;
+}
+
+.wj-chip-removable .wj-icon-btn .svg-icon {
+    width: 13px;
+    height: 13px;
+}
+
+/* ── Roomier surfaces ─────────────────────────────────────────────────── */
+
+/* Applied to the modal element, so the frame itself narrows. */
+.wj-modal-narrow {
+    max-width: 560px;
+}
+
+.wj-stats-body {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+/* The three destinations under the start button on the home page. */
+.workout-home-links {
+    display: flex;
+    gap: var(--wj-gap-tight);
+}
+
+.workout-home-links .wj-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 10px;
 }

@@ -1,6 +1,17 @@
 import { App, Modal, Notice, Setting } from 'obsidian';
 import { ExerciseDefinition, WorkoutTemplate } from '../types';
 import WorkoutTrackerPlugin from '../plugin';
+import {
+	createActionBar,
+	createButton,
+	createHint,
+	createIconButton,
+	createList,
+	createRow,
+	createSectionLabel,
+	markPluginModal,
+	renderHeader,
+} from '../utils/uiKit';
 
 export class WorkoutTemplateSettingModal extends Modal {
 	plugin: WorkoutTrackerPlugin;
@@ -27,7 +38,11 @@ export class WorkoutTemplateSettingModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 
-		contentEl.createEl("h2", { text: "Add workout template" });
+		markPluginModal(contentEl);
+		renderHeader(contentEl, {
+			title: "Add workout template",
+			subtitle: "A named list of exercises for one-tap logging",
+		});
 
 		new Setting(contentEl)
 			.setName('Template name')
@@ -47,12 +62,12 @@ export class WorkoutTemplateSettingModal extends Modal {
 				}));
 
 		// Selected exercises display
-		contentEl.createEl("p", { text: "Selected exercises", cls: "wt-template-exercises-label" });
-		this.selectedEl = contentEl.createDiv({ cls: "wt-template-selected-exercises" });
+		createSectionLabel(contentEl, "Selected exercises");
+		this.selectedEl = contentEl.createDiv({ cls: "wj-chip-row" });
 		this.renderSelected();
 
 		// Search + picker
-		contentEl.createEl("p", { text: "Add from library", cls: "wt-template-exercises-label" });
+		createSectionLabel(contentEl, "Add from library");
 		new Setting(contentEl).setName("Search").addText((text) => {
 			text.setPlaceholder("Type to filter exercises…").onChange((value) => {
 				this.searchQuery = value;
@@ -61,16 +76,17 @@ export class WorkoutTemplateSettingModal extends Modal {
 			window.setTimeout(() => text.inputEl.focus(), 50);
 		});
 
-		this.listEl = contentEl.createDiv({ cls: "workout-add-exercise-list" });
+		this.listEl = contentEl.createDiv({ cls: "wj-picker-list" });
 
 		// Load exercises asynchronously then render list
 		void this.loadExercises();
 
-		new Setting(contentEl)
-			.addButton(btn => btn
-				.setButtonText('Save template')
-				.setCta()
-				.onClick(async () => {
+		const actions = createActionBar(contentEl);
+		createButton(actions, {
+			label: 'Save template',
+			variant: 'primary',
+			onClick: () => {
+				void (async () => {
 					if (!this.template.name) {
 						new Notice('Please enter a template name');
 					} else if (this.template.exercises.length === 0) {
@@ -81,7 +97,14 @@ export class WorkoutTemplateSettingModal extends Modal {
 						this.onSave();
 						this.close();
 					}
-				}));
+				})();
+			},
+		});
+		createButton(actions, {
+			label: 'Cancel',
+			variant: 'quiet',
+			onClick: () => this.close(),
+		});
 	}
 
 	private async loadExercises(): Promise<void> {
@@ -92,21 +115,22 @@ export class WorkoutTemplateSettingModal extends Modal {
 	private renderSelected() {
 		this.selectedEl.empty();
 		if (this.template.exercises.length === 0) {
-			this.selectedEl.createEl("p", {
-				text: "No exercises selected.",
-				cls: "workout-add-exercise-empty",
-			});
+			createHint(this.selectedEl, "No exercises selected.");
 			return;
 		}
 		this.template.exercises.forEach((name) => {
-			const chip = this.selectedEl.createDiv({ cls: "wt-template-exercise-chip" });
+			const chip = this.selectedEl.createDiv({ cls: "wj-chip wj-chip-removable" });
 			chip.createSpan({ text: name });
-			const removeBtn = chip.createEl("button", { text: "✕", cls: "wt-template-exercise-chip-remove" });
-			removeBtn.onclick = () => {
-				this.template.exercises = this.template.exercises.filter(n => n !== name);
-				this.renderSelected();
-				this.renderList();
-			};
+			createIconButton(
+				chip,
+				"x",
+				`Remove ${name}`,
+				() => {
+					this.template.exercises = this.template.exercises.filter(n => n !== name);
+					this.renderSelected();
+					this.renderList();
+				}
+			);
 		});
 	}
 
@@ -121,23 +145,20 @@ export class WorkoutTemplateSettingModal extends Modal {
 		);
 
 		if (filtered.length === 0) {
-			this.listEl.createEl("p", { text: "No exercises found.", cls: "workout-add-exercise-empty" });
+			createHint(this.listEl, "No exercises found.");
 			return;
 		}
 
+		const list = createList(this.listEl);
 		filtered.forEach((ex) => {
-			const item = this.listEl.createDiv({ cls: "workout-add-exercise-item" });
-			item.createSpan({ text: ex.name, cls: "workout-add-exercise-name" });
-			if (ex.muscleGroups?.length) {
-				item.createEl("small", {
-					text: ex.muscleGroups.join(", "),
-					cls: "workout-add-exercise-muscles",
-				});
-			}
-			item.addEventListener("click", () => {
-				this.template.exercises.push(ex.name);
-				this.renderSelected();
-				this.renderList();
+			createRow(list, {
+				title: ex.name,
+				meta: ex.muscleGroups?.length ? ex.muscleGroups.join(", ") : undefined,
+				onClick: () => {
+					this.template.exercises.push(ex.name);
+					this.renderSelected();
+					this.renderList();
+				},
 			});
 		});
 	}

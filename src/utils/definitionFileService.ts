@@ -278,6 +278,7 @@ export class DefinitionFileService {
         routines: (frontmatter['wj-routines'] || []) as WorkoutPlanRoutineEntry[],
         notes: this.asString(frontmatter['wj-notes']),
         filePath: file.path,
+        pinned: frontmatter['wj-pinned'] === true,
       };
     } catch (error) {
       console.error(`Error parsing plan definition ${file.path}`, error);
@@ -346,6 +347,22 @@ export class DefinitionFileService {
 
     const content = this.renderRoutineDefinition(def);
     await this.app.vault.modify(file, content);
+    return true;
+  }
+
+  /**
+   * Pin or unpin a plan. Only the `wj-pinned` key is touched, so the rest of
+   * the note is left exactly as it is.
+   */
+  async setPlanPinned(def: WorkoutPlanDefinition, pinned: boolean): Promise<boolean> {
+    if (!def.filePath) return false;
+    const file = this.app.vault.getAbstractFileByPath(def.filePath);
+    if (!(file instanceof TFile)) return false;
+    await this.app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
+      if (pinned) frontmatter['wj-pinned'] = true;
+      else delete frontmatter['wj-pinned'];
+    });
+    def.pinned = pinned || undefined;
     return true;
   }
 
@@ -523,6 +540,8 @@ export class DefinitionFileService {
       'wj-name': def.name,
       'wj-routines': def.routines,
       'wj-notes': def.notes,
+      // Omitted for unpinned plans so existing notes stay untouched.
+      'wj-pinned': def.pinned ? true : undefined,
     };
     const templateFm = parseTemplateFrontmatter(
       this.settings.noteTemplates?.plan?.frontmatter

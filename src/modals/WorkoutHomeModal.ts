@@ -32,7 +32,8 @@ import {
 
 /**
  * The plugin's landing page: resume or start a workout, then the library —
- * plans as collapsible folders holding their routines, loose routines below.
+ * plans as collapsible folders holding their routines (pinned plans first),
+ * loose routines below.
  */
 export class WorkoutHomeModal extends Modal {
   private plugin: WorkoutTrackerPlugin;
@@ -218,7 +219,11 @@ export class WorkoutHomeModal extends Modal {
       return;
     }
 
-    for (const plan of this.plans) {
+    // Pinned plans first; the sort is stable, so each group keeps its order.
+    const ordered = [...this.plans].sort(
+      (a, b) => Number(!!b.pinned) - Number(!!a.pinned)
+    );
+    for (const plan of ordered) {
       this.renderPlanCard(section, plan, routinesById);
     }
   }
@@ -229,6 +234,7 @@ export class WorkoutHomeModal extends Modal {
     routinesById: Map<string, RoutineDefinition>
   ): void {
     const card = container.createDiv({ cls: "workout-home-plan" });
+    card.toggleClass("is-pinned", !!plan.pinned);
     const header = card.createDiv({ cls: "workout-home-plan-header" });
 
     const toggle = header.createEl("button", {
@@ -243,6 +249,15 @@ export class WorkoutHomeModal extends Modal {
     });
 
     const actions = header.createDiv({ cls: "workout-home-plan-actions" });
+    const pin = this.createIconButton(
+      actions,
+      "pin",
+      plan.pinned ? "Unpin plan" : "Pin plan to top",
+      () => void this.togglePinned(plan)
+    );
+    pin.addClass("workout-home-pin-btn");
+    pin.toggleClass("is-pinned", !!plan.pinned);
+    pin.setAttr("aria-pressed", String(!!plan.pinned));
     this.createIconButton(actions, "plus", "Add routine to this plan", () =>
       this.openRoutineBuilder(plan)
     );
@@ -272,6 +287,22 @@ export class WorkoutHomeModal extends Modal {
       apply(next);
       void this.setExpanded(plan.id, next);
     };
+  }
+
+  private async togglePinned(plan: WorkoutPlanDefinition): Promise<void> {
+    const next = !plan.pinned;
+    try {
+      const saved = await this.plugin.definitionService.setPlanPinned(plan, next);
+      if (!saved) {
+        new Notice(`Could not find the note for "${plan.name}".`);
+        return;
+      }
+    } catch (error) {
+      console.error("Failed to pin plan", error);
+      new Notice(`Could not ${next ? "pin" : "unpin"} "${plan.name}".`);
+      return;
+    }
+    this.renderBody();
   }
 
   private isExpanded(planId: string): boolean {

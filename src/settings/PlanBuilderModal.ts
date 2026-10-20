@@ -139,6 +139,7 @@ export class PlanBuilderModal extends Modal {
         notes: entry.notes || undefined,
       })),
       filePath: this.existingPlan?.filePath,
+      pinned: this.existingPlan?.pinned,
     };
 
     const file = await this.plugin.definitionService.createWorkoutPlanDefinition(plan);

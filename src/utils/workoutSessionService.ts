@@ -75,6 +75,7 @@ export class WorkoutSessionService {
         notes: exercise.notes,
         exerciseNotes: options?.exerciseNotesMap?.get(exercise.exerciseId),
         exerciseFilePath: options?.exerciseFilePathMap?.get(exercise.exerciseId),
+        restTimerSeconds: exercise.restTimerSeconds,
       });
     }
 
@@ -206,13 +207,16 @@ export class WorkoutSessionService {
       const nextExercises = session.exercises.map((sessionExercise) => {
         const existing = routineByExerciseId.get(sessionExercise.exerciseId);
         const sets = buildSets(sessionExercise, existing?.sets ?? []);
+        const restTimerSeconds =
+          sessionExercise.restTimerSeconds ?? existing?.restTimerSeconds;
         return existing
-          ? { ...existing, notes: sessionExercise.notes, sets }
+          ? { ...existing, notes: sessionExercise.notes, sets, restTimerSeconds }
           : {
               exerciseId: sessionExercise.exerciseId,
               exerciseName: sessionExercise.exerciseName,
               sets,
               notes: sessionExercise.notes,
+              restTimerSeconds,
             };
       });
       return { ...routine, exercises: nextExercises };

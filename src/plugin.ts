@@ -822,6 +822,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
           })),
           completed: false,
           notes: entry.notes,
+          restTimerSeconds: entry.restTimerSeconds,
         };
       }),
       notes: routine.notes,
@@ -868,6 +869,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
           setType: s.setType,
         })),
         notes: ex.notes,
+        restTimerSeconds: ex.restTimerSeconds,
       })),
       notes: session.notes,
     };

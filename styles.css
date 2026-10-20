@@ -1563,7 +1563,37 @@ body {
 
 /* ── Routine changes prompt ────────────────────────────────── */
 
-.wj-routine-changes-list {
+/*
+ * Keep the whole prompt inside the visible screen. dvh follows the mobile
+ * browser bars and keyboard; vh is the fallback. The modal becomes a column
+ * so only the change list gives up height; if even the fixed parts don't
+ * fit (a tiny window), the content scrolls as a whole instead of clipping.
+ */
+.modal.wj-routine-changes-shell {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    overflow: hidden;
+}
+
+.modal.wj-routine-changes-shell .modal-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.wj-routine-changes-modal > * {
+    flex-shrink: 0;
+}
+
+.wj-routine-changes-modal > .wj-routine-changes-list {
+    flex: 0 1 auto;
+    min-height: 4.5em;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     margin: 0 0 var(--wj-gap-loose);
     padding: 10px 14px 10px 30px;
     border-radius: var(--wj-radius-card);
@@ -1571,10 +1601,6 @@ body {
     font-size: var(--font-ui-small);
     line-height: 1.5;
     color: var(--text-normal);
-}
-
-.wj-routine-changes-more {
-    color: var(--text-muted);
 }
 
 .wj-choice-list {
@@ -1638,6 +1664,45 @@ body {
     font-size: var(--font-ui-smaller);
     color: var(--text-muted);
     line-height: 1.4;
+}
+
+/* Short windows (phone in landscape, keyboard open): drop the explanations
+   and tighten spacing so the choices keep their place on screen. */
+@media (max-height: 480px) {
+    .wj-routine-changes-modal > .wj-header {
+        padding-bottom: var(--wj-gap-tight);
+        margin-bottom: var(--wj-gap-tight);
+    }
+
+    .wj-routine-changes-modal .wj-subtitle,
+    .wj-routine-changes-modal .wj-choice-desc {
+        display: none;
+    }
+
+    .wj-routine-changes-modal > .wj-routine-changes-list {
+        min-height: 2.6em;
+        margin-bottom: var(--wj-gap);
+        padding-top: 6px;
+        padding-bottom: 6px;
+    }
+
+    .wj-routine-changes-modal .wj-choice-list {
+        flex-direction: row;
+    }
+
+    .wj-routine-changes-modal .wj-choice {
+        flex: 1 1 0;
+        flex-direction: column;
+        gap: 4px;
+        padding: 8px;
+        text-align: center;
+    }
+
+    .wj-routine-changes-modal > .wj-actions .wj-btn {
+        min-height: 30px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+    }
 }
 
 /* ── Duration stopwatch ────────────────────────────────────── */

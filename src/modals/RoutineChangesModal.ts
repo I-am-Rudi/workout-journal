@@ -4,14 +4,14 @@ import { createActionBar, createButton, markPluginModal, renderHeader } from "..
 
 type RoutineChangeStrategy = SessionFinishOptions["routineChangeStrategy"];
 
-/** How many change lines to list before summarising the rest. */
-const MAX_LISTED_CHANGES = 6;
-
 /**
  * Asked after "Finish workout" when the session changed its routine. There is
  * no default: the workout is only saved once one of the three choices is
  * picked. Closing the prompt (Esc, the X, "Back") returns to the finish dialog
  * and saves nothing.
+ *
+ * The prompt never grows past the screen: with many changes the list scrolls
+ * on its own while the header and the three choices stay in view.
  */
 export class RoutineChangesModal extends Modal {
   private routineName: string;
@@ -32,6 +32,7 @@ export class RoutineChangesModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
+    this.modalEl.addClass("wj-routine-changes-shell");
     markPluginModal(contentEl, "wj-routine-changes-modal");
 
     renderHeader(contentEl, {
@@ -40,15 +41,10 @@ export class RoutineChangesModal extends Modal {
     });
 
     const list = contentEl.createEl("ul", { cls: "wj-routine-changes-list" });
-    for (const change of this.changes.slice(0, MAX_LISTED_CHANGES)) {
+    list.setAttr("aria-label", `${this.changes.length} routine changes`);
+    list.setAttr("tabindex", "0");
+    for (const change of this.changes) {
       list.createEl("li", { text: change });
-    }
-    const hidden = this.changes.length - MAX_LISTED_CHANGES;
-    if (hidden > 0) {
-      list.createEl("li", {
-        text: `and ${hidden} more`,
-        cls: "wj-routine-changes-more",
-      });
     }
 
     const choices = contentEl.createDiv({ cls: "wj-choice-list" });

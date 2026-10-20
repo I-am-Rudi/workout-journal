@@ -1561,6 +1561,85 @@ body {
     color: var(--text-normal);
 }
 
+/* ── Routine changes prompt ────────────────────────────────── */
+
+.wj-routine-changes-list {
+    margin: 0 0 var(--wj-gap-loose);
+    padding: 10px 14px 10px 30px;
+    border-radius: var(--wj-radius-card);
+    background: var(--background-modifier-hover);
+    font-size: var(--font-ui-small);
+    line-height: 1.5;
+    color: var(--text-normal);
+}
+
+.wj-routine-changes-more {
+    color: var(--text-muted);
+}
+
+.wj-choice-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--wj-gap-tight);
+    margin-bottom: var(--wj-gap);
+}
+
+/* Three equal choices: none is styled as the default answer. */
+.wj-choice {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    height: auto;
+    min-height: var(--wj-touch);
+    padding: 12px 14px;
+    border: none;
+    border-radius: var(--wj-radius-card);
+    box-shadow: none;
+    background: var(--wj-accent-soft);
+    color: var(--text-normal);
+    text-align: left;
+    white-space: normal;
+    cursor: pointer;
+}
+
+.wj-choice:hover {
+    background: var(--wj-accent-soft-hover);
+}
+
+.wj-choice:focus-visible {
+    box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+.wj-choice-icon {
+    display: flex;
+    flex-shrink: 0;
+    color: var(--interactive-accent);
+}
+
+.wj-choice-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.wj-choice-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.wj-choice-title {
+    font-size: var(--font-ui-small);
+    font-weight: 600;
+}
+
+.wj-choice-desc {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
 /* ── Duration stopwatch ────────────────────────────────────── */
 
 .workout-session-duration-cell {

@@ -1,5 +1,6 @@
 import { App, Modal, Setting } from "obsidian";
 import { SessionFinishOptions } from "../types";
+import { RoutineChangesModal } from "./RoutineChangesModal";
 import { formatDurationMinutes } from "../utils/sessionTimerUtils";
 import {
   createActionBar,
@@ -11,8 +12,12 @@ import {
 export class SessionFinishModal extends Modal {
   onSubmit: (options: SessionFinishOptions) => void;
   hasUnfinishedSets: boolean;
-  /** Whether to ask what to do with routine edits; false when there are none. */
-  hasRoutineChanges: boolean;
+  /**
+   * The routine edits made in the session, one line each. When there are any,
+   * finishing asks what to do with them; when empty, the routine is left alone.
+   */
+  routineChanges: string[];
+  routineName: string;
   /** Minutes the workout timer measured; undefined when it never ran. */
   measuredMinutes?: number;
   options: SessionFinishOptions = {
@@ -24,14 +29,15 @@ export class SessionFinishModal extends Modal {
   constructor(
     app: App,
     hasUnfinishedSets: boolean,
-    hasRoutineChanges: boolean,
+    routine: { name: string; changes: string[] },
     measuredMinutes: number | undefined,
     onSubmit: (options: SessionFinishOptions) => void
   ) {
     super(app);
     this.onSubmit = onSubmit;
     this.hasUnfinishedSets = hasUnfinishedSets;
-    this.hasRoutineChanges = hasRoutineChanges;
+    this.routineChanges = routine.changes;
+    this.routineName = routine.name;
     this.measuredMinutes = measuredMinutes;
     this.options.durationMinutes = measuredMinutes;
   }
@@ -93,35 +99,37 @@ export class SessionFinishModal extends Modal {
         })
       );
 
-    // Without real routine edits there is nothing to decide; keep "ignore".
-    if (this.hasRoutineChanges) {
-      new Setting(contentEl)
-        .setName("Routine changes")
-        .setDesc("Choose what to do with routine edits made during the workout.")
-        .addDropdown((dropdown) =>
-          dropdown
-            .addOption("ignore", "Ignore changes")
-            .addOption("overwrite", "Overwrite existing routine")
-            .addOption("create_new", "Create new routine")
-            .setValue(this.options.routineChangeStrategy)
-            .onChange((value) => {
-              this.options.routineChangeStrategy = value as
-                | "overwrite"
-                | "create_new"
-                | "ignore";
-            })
-        );
-    }
-
     const actions = createActionBar(contentEl);
     createButton(actions, {
       label: "Finish workout",
       variant: "primary",
-      onClick: () => {
-        this.onSubmit(this.options);
-        this.close();
-      },
+      onClick: () => this.finish(),
     });
+  }
+
+  /**
+   * Save straight away when the routine is untouched; otherwise ask first.
+   * Backing out of that question leaves this dialog open with nothing saved.
+   */
+  private finish(): void {
+    if (!this.routineChanges.length) {
+      this.options.routineChangeStrategy = "ignore";
+      this.submit();
+      return;
+    }
+    new RoutineChangesModal(
+      this.app,
+      { routineName: this.routineName, changes: this.routineChanges },
+      (strategy) => {
+        this.options.routineChangeStrategy = strategy;
+        this.submit();
+      }
+    ).open();
+  }
+
+  private submit(): void {
+    this.onSubmit(this.options);
+    this.close();
   }
 
   onClose() {

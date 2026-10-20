@@ -182,6 +182,72 @@ export class WorkoutSessionService {
     });
   }
 
+  /**
+   * The routine edits made in the session, one readable line each, for the
+   * finish prompt. Empty when `hasRoutineStructureChanges` is false. When the
+   * list differs in a way these lines don't name (the same exercise twice,
+   * say), a generic line keeps the two in agreement.
+   */
+  describeRoutineChanges(
+    routine: RoutineDefinition,
+    session: WorkoutSession
+  ): string[] {
+    if (!this.hasRoutineStructureChanges(routine, session)) return [];
+
+    const lines: string[] = [];
+    const routineIds = routine.exercises.map((entry) => entry.exerciseId);
+    const sessionIds = session.exercises.map((exercise) => exercise.exerciseId);
+
+    for (const exercise of session.exercises) {
+      if (!routineIds.includes(exercise.exerciseId)) {
+        lines.push(`Added ${exercise.exerciseName}`);
+      }
+    }
+    for (const entry of routine.exercises) {
+      if (!sessionIds.includes(entry.exerciseId)) {
+        lines.push(`Removed ${entry.exerciseName}`);
+      }
+    }
+    const keptInRoutine = routineIds.filter((id) => sessionIds.includes(id));
+    const keptInSession = sessionIds.filter((id) => routineIds.includes(id));
+    if (keptInRoutine.join("\n") !== keptInSession.join("\n")) {
+      lines.push("Changed the exercise order");
+    }
+
+    const formatTimer = (seconds: number | undefined) =>
+      seconds === undefined ? "default" : `${seconds}s`;
+    const sessionById = new Map(
+      session.exercises.map((exercise) => [exercise.exerciseId, exercise])
+    );
+    for (const entry of routine.exercises) {
+      const exercise = sessionById.get(entry.exerciseId);
+      if (!exercise) continue;
+      const name = exercise.exerciseName;
+      if (entry.sets.length !== exercise.sets.length) {
+        lines.push(`${name}: ${entry.sets.length} → ${exercise.sets.length} sets`);
+      }
+      if (entry.restTimerSeconds !== exercise.restTimerSeconds) {
+        lines.push(
+          `${name}: rest timer ${formatTimer(entry.restTimerSeconds)} → ${formatTimer(exercise.restTimerSeconds)}`
+        );
+      }
+      const shared = Math.min(entry.sets.length, exercise.sets.length);
+      const setsDiffer = (pick: (set: { setType?: SetType; restTime?: number }) => unknown) =>
+        entry.sets.slice(0, shared).some((set, i) => pick(set) !== pick(exercise.sets[i]));
+      if (setsDiffer((set) => set.setType ?? "default")) {
+        lines.push(`${name}: set types changed`);
+      }
+      if (setsDiffer((set) => set.restTime)) {
+        lines.push(`${name}: pause changed`);
+      }
+      if ((entry.notes || "") !== (exercise.notes || "")) {
+        lines.push(`${name}: note changed`);
+      }
+    }
+
+    return lines.length ? lines : ["Changed the exercise list"];
+  }
+
   mergeSessionIntoRoutine(
     routine: RoutineDefinition,
     session: WorkoutSession,

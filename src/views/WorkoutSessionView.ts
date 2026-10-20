@@ -4,6 +4,7 @@ import { SessionFinishOptions, SetType, WorkoutSession, WorkoutSessionExercise, 
 import { AddSessionExerciseModal } from "../modals/AddSessionExerciseModal";
 import { ExerciseNoteModal } from "../modals/ExerciseNoteModal";
 import { ConfirmModal } from "../modals/ConfirmModal";
+import { DurationStopwatchModal } from "../modals/DurationStopwatchModal";
 import { FeedbackPlayer } from "../utils/feedbackUtils";
 import { isDurationOnly, isRepsOnly } from "../utils/exerciseTypeUtils";
 import {
@@ -80,6 +81,20 @@ export class WorkoutSessionView extends ItemView {
       return String(count);
     }
     return current.setType[0].toUpperCase();
+  }
+
+  /** "Set 2", or "Warm-up set" etc. for the special set types. */
+  private describeSet(sets: WorkoutSessionSet[], index: number): string {
+    const names: Record<SetType, string> = {
+      default: "Set",
+      warmup: "Warm-up set",
+      dropset: "Drop set",
+      myoreps: "Myo-reps set",
+    };
+    const type = sets[index]?.setType ?? "default";
+    return type === "default"
+      ? `Set ${this.getSetDisplayLabel(sets, index)}`
+      : names[type];
   }
 
   private nextSetType(current: SetType | undefined): SetType {
@@ -406,6 +421,10 @@ export class WorkoutSessionView extends ItemView {
               set.duration = duration;
               session.hasRoutineChanges = true;
             });
+            if (!isRoutineEdit && !session.isCircle) {
+              durationCell.addClass("workout-session-duration-cell");
+              this.renderStopwatchButton(durationCell, exercise, exerciseIndex, index, timerDisplay);
+            }
 
             if (session.isCircle) {
               const pauseCell = row.createEl("td");
@@ -609,7 +628,7 @@ export class WorkoutSessionView extends ItemView {
       cls: "wj-btn wj-btn-block wj-btn-primary",
     });
     finishBtn.onclick = () => {
-      this.plugin.finishActiveSessionFromView();
+      void this.plugin.finishActiveSessionFromView();
     };
 
     const cancelBtn = actions.createEl("button", {
@@ -726,6 +745,9 @@ export class WorkoutSessionView extends ItemView {
         set.duration = duration;
         if (this.session) this.session.hasRoutineChanges = true;
       });
+      if (!isRoutineEdit && !this.session?.isCircle) {
+        this.renderStopwatchButton(header, exercise, exerciseIndex, index, timerDisplay);
+      }
       if (this.session?.isCircle) {
         header.createSpan({ text: "pause", cls: "workout-session-set-card-target" });
         this.renderDurationEditor(header, set.restTime, (restTime) => {
@@ -853,6 +875,48 @@ export class WorkoutSessionView extends ItemView {
     };
     repsInput.oninput = update;
     repsInput.onchange = update;
+  }
+
+  /**
+   * A button that opens a stopwatch for a duration-only set. Stopping it
+   * writes the timed seconds into the set and completes it, exactly as if the
+   * time had been typed and "Done" ticked, including the rest timer.
+   */
+  private renderStopwatchButton(
+    container: HTMLElement,
+    exercise: WorkoutSessionExercise,
+    exerciseIndex: number,
+    setIndex: number,
+    timerDisplay: HTMLElement
+  ) {
+    const button = container.createEl("button", {
+      cls: "workout-session-stopwatch-btn",
+      attr: { "aria-label": "Time this set", title: "Time this set" },
+    });
+    setIcon(button, "timer");
+    button.onclick = () => {
+      const set = exercise.sets[setIndex];
+      if (!set) return;
+      new DurationStopwatchModal(this.app, {
+        exerciseName: exercise.exerciseName,
+        setLabel: this.describeSet(exercise.sets, setIndex),
+        targetSeconds: set.duration && set.duration > 0 ? Math.round(set.duration) : undefined,
+        onTargetReached: () => this.triggerRestTimerCompletionFeedback(),
+        onSave: (seconds) => {
+          set.duration = seconds;
+          set.completed = true;
+          exercise.completed = exercise.sets.every((s) => s.completed);
+          this.triggerSetCompletionFeedback();
+          const rest = exercise.restTimerSeconds !== undefined
+            ? exercise.restTimerSeconds
+            : this.plugin.settings.defaultRestTimerSeconds;
+          if (rest > 0) {
+            this.startRestTimer(exerciseIndex, rest, timerDisplay);
+          }
+          this.render();
+        },
+      }).open();
+    };
   }
 
   private renderDurationEditor(

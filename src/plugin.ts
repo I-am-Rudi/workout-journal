@@ -890,7 +890,7 @@ export default class WorkoutTrackerPlugin extends Plugin {
     await this.startSessionFromRoutine(routineDef, preferPopout);
   }
 
-  finishActiveSessionFromView(): void {
+  async finishActiveSessionFromView(): Promise<void> {
     const session = this.activeSession;
     if (!session) {
       new Notice("No active session to finish.");
@@ -899,10 +899,19 @@ export default class WorkoutTrackerPlugin extends Plugin {
     const hasUnfinishedSets = session.exercises.some((exercise) =>
       exercise.sets.some((set) => !set.completed)
     );
+    // Only ask about routine edits when the session actually differs from the
+    // saved routine. Quick-log sessions have no routine note, so never ask.
+    const routine = session.routineId
+      ? await this.definitionService.loadRoutineById(session.routineId)
+      : null;
+    const hasRoutineChanges = routine
+      ? this.workoutSessionService.hasRoutineStructureChanges(routine, session)
+      : false;
 
     new SessionFinishModal(
       this.app,
       hasUnfinishedSets,
+      hasRoutineChanges,
       getSessionDurationMinutes(session),
       (options) => {
         void this.finishActiveSession(options);

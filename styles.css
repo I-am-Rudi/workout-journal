@@ -1561,6 +1561,88 @@ body {
     color: var(--text-normal);
 }
 
+/* ── Duration stopwatch ────────────────────────────────────── */
+
+.workout-session-duration-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.workout-session-stopwatch-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    border-radius: var(--wj-radius-control);
+    background: var(--wj-accent-soft);
+    color: var(--interactive-accent);
+    cursor: pointer;
+}
+
+.workout-session-stopwatch-btn:hover {
+    background: var(--wj-accent-soft-hover);
+}
+
+.workout-session-stopwatch-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.wj-stopwatch-face {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 28px 16px 22px;
+    border-radius: var(--wj-radius-card);
+    background: var(--background-modifier-hover);
+    cursor: pointer;
+    user-select: none;
+    transition: background 120ms ease;
+}
+
+.wj-stopwatch-modal.is-running .wj-stopwatch-face {
+    background: var(--wj-accent-soft);
+}
+
+.wj-stopwatch-clock {
+    font-size: 56px;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-normal);
+}
+
+.wj-stopwatch-modal.is-target-reached .wj-stopwatch-clock {
+    color: var(--interactive-accent);
+}
+
+.wj-stopwatch-hint {
+    font-size: var(--wj-label-size);
+    color: var(--text-faint);
+}
+
+.wj-stopwatch-progress {
+    height: 6px;
+    margin-top: var(--wj-gap);
+    border-radius: 3px;
+    background: var(--background-modifier-border);
+    overflow: hidden;
+}
+
+.wj-stopwatch-progress-fill {
+    width: var(--wj-stopwatch-progress, 0%);
+    height: 100%;
+    background: var(--interactive-accent);
+    transition: width 100ms linear;
+}
+
 /* ── Circuit session player ────────────────────────────────── */
 
 .workspace-leaf-content[data-type="workout-tracker-circuit-view"] .view-content {

@@ -138,6 +138,8 @@ export class PlanBuilderModal extends Modal {
         day: entry.day || undefined,
         notes: entry.notes || undefined,
       })),
+      // The builder has no notes field, so keep the plan's own notes.
+      notes: this.existingPlan?.notes,
       filePath: this.existingPlan?.filePath,
       pinned: this.existingPlan?.pinned,
     };

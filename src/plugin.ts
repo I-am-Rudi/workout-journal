@@ -904,14 +904,14 @@ export default class WorkoutTrackerPlugin extends Plugin {
     const routine = session.routineId
       ? await this.definitionService.loadRoutineById(session.routineId)
       : null;
-    const hasRoutineChanges = routine
-      ? this.workoutSessionService.hasRoutineStructureChanges(routine, session)
-      : false;
+    const routineChanges = routine
+      ? this.workoutSessionService.describeRoutineChanges(routine, session)
+      : [];
 
     new SessionFinishModal(
       this.app,
       hasUnfinishedSets,
-      hasRoutineChanges,
+      { name: routine?.name ?? session.name, changes: routineChanges },
       getSessionDurationMinutes(session),
       (options) => {
         void this.finishActiveSession(options);

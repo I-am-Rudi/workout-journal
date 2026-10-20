@@ -1620,10 +1620,16 @@ body {
     margin-bottom: var(--wj-gap);
 }
 
-/* Three equal choices: none is styled as the default answer. */
+/*
+ * Three equal choices: none is styled as the default answer. Obsidian centres
+ * button content by default, which put each icon at a different spot; here the
+ * content starts at the left and the icon sits on the title's line, so the
+ * three icons form one column whatever the description length.
+ */
 .wj-choice {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    justify-content: flex-start;
     gap: 12px;
     width: 100%;
     height: auto;
@@ -1649,7 +1655,11 @@ body {
 
 .wj-choice-icon {
     display: flex;
-    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 20px;
+    width: 20px;
+    height: 20px;
     color: var(--interactive-accent);
 }
 
@@ -1660,14 +1670,17 @@ body {
 
 .wj-choice-text {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     gap: 2px;
     min-width: 0;
 }
 
+/* Same height as the icon box, so icon and title share a centre line. */
 .wj-choice-title {
     font-size: var(--font-ui-small);
     font-weight: 600;
+    line-height: 20px;
 }
 
 .wj-choice-desc {
@@ -1703,9 +1716,16 @@ body {
     .wj-routine-changes-modal .wj-choice {
         flex: 1 1 0;
         flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
         gap: 4px;
         padding: 8px;
         text-align: center;
+    }
+
+    .wj-routine-changes-modal .wj-choice-text {
+        flex: 0 1 auto;
+        align-items: center;
     }
 
     .wj-routine-changes-modal > .wj-actions .wj-btn {

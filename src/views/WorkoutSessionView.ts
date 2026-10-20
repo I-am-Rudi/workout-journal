@@ -609,7 +609,7 @@ export class WorkoutSessionView extends ItemView {
       cls: "wj-btn wj-btn-block wj-btn-primary",
     });
     finishBtn.onclick = () => {
-      this.plugin.finishActiveSessionFromView();
+      void this.plugin.finishActiveSessionFromView();
     };
 
     const cancelBtn = actions.createEl("button", {

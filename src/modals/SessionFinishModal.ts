@@ -11,6 +11,8 @@ import {
 export class SessionFinishModal extends Modal {
   onSubmit: (options: SessionFinishOptions) => void;
   hasUnfinishedSets: boolean;
+  /** Whether to ask what to do with routine edits; false when there are none. */
+  hasRoutineChanges: boolean;
   /** Minutes the workout timer measured; undefined when it never ran. */
   measuredMinutes?: number;
   options: SessionFinishOptions = {
@@ -22,12 +24,14 @@ export class SessionFinishModal extends Modal {
   constructor(
     app: App,
     hasUnfinishedSets: boolean,
+    hasRoutineChanges: boolean,
     measuredMinutes: number | undefined,
     onSubmit: (options: SessionFinishOptions) => void
   ) {
     super(app);
     this.onSubmit = onSubmit;
     this.hasUnfinishedSets = hasUnfinishedSets;
+    this.hasRoutineChanges = hasRoutineChanges;
     this.measuredMinutes = measuredMinutes;
     this.options.durationMinutes = measuredMinutes;
   }
@@ -89,22 +93,25 @@ export class SessionFinishModal extends Modal {
         })
       );
 
-    new Setting(contentEl)
-      .setName("Routine changes")
-      .setDesc("Choose what to do with routine edits made during the workout.")
-      .addDropdown((dropdown) =>
-        dropdown
-          .addOption("ignore", "Ignore changes")
-          .addOption("overwrite", "Overwrite existing routine")
-          .addOption("create_new", "Create new routine")
-          .setValue(this.options.routineChangeStrategy)
-          .onChange((value) => {
-            this.options.routineChangeStrategy = value as
-              | "overwrite"
-              | "create_new"
-              | "ignore";
-          })
-      );
+    // Without real routine edits there is nothing to decide; keep "ignore".
+    if (this.hasRoutineChanges) {
+      new Setting(contentEl)
+        .setName("Routine changes")
+        .setDesc("Choose what to do with routine edits made during the workout.")
+        .addDropdown((dropdown) =>
+          dropdown
+            .addOption("ignore", "Ignore changes")
+            .addOption("overwrite", "Overwrite existing routine")
+            .addOption("create_new", "Create new routine")
+            .setValue(this.options.routineChangeStrategy)
+            .onChange((value) => {
+              this.options.routineChangeStrategy = value as
+                | "overwrite"
+                | "create_new"
+                | "ignore";
+            })
+        );
+    }
 
     const actions = createActionBar(contentEl);
     createButton(actions, {

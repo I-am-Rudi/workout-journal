@@ -155,6 +155,33 @@ export class WorkoutSessionService {
     };
   }
 
+  /**
+   * Whether the session changed the routine's structure: exercises added,
+   * removed, replaced or reordered, sets added or removed, set types, routine
+   * notes or rest timers. Reps, weight, duration and distance don't count:
+   * they are performed values, handled by "store new target values".
+   */
+  hasRoutineStructureChanges(
+    routine: RoutineDefinition,
+    session: WorkoutSession
+  ): boolean {
+    if (routine.exercises.length !== session.exercises.length) return true;
+    return routine.exercises.some((entry, i) => {
+      const exercise = session.exercises[i];
+      if (entry.exerciseId !== exercise.exerciseId) return true;
+      if ((entry.notes || "") !== (exercise.notes || "")) return true;
+      if (entry.restTimerSeconds !== exercise.restTimerSeconds) return true;
+      if (entry.sets.length !== exercise.sets.length) return true;
+      return entry.sets.some((set, j) => {
+        const sessionSet = exercise.sets[j];
+        return (
+          (set.setType ?? "default") !== (sessionSet.setType ?? "default") ||
+          set.restTime !== sessionSet.restTime
+        );
+      });
+    });
+  }
+
   mergeSessionIntoRoutine(
     routine: RoutineDefinition,
     session: WorkoutSession,

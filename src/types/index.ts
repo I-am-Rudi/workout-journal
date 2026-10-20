@@ -164,6 +164,8 @@ export interface RoutineExerciseEntry {
   exerciseLink?: string;
   sets: RoutineExerciseSetTarget[];
   notes?: string;
+  /** Rest timer for this exercise; absent means the global default. */
+  restTimerSeconds?: number;
 }
 
 export interface RoutineDefinition {

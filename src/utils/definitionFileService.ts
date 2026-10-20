@@ -551,6 +551,9 @@ export class DefinitionFileService {
         ? exercise.exerciseLink.replace(/\]\]$/, `|${exercise.exerciseName}]]`)
         : exercise.exerciseName;
       content += `### ${heading}\n\n`;
+      if (exercise.restTimerSeconds !== undefined) {
+        content += `**Rest timer:** ${exercise.restTimerSeconds}s\n\n`;
+      }
       if (exercise.sets.length > 0) {
         content += `| Set | Reps | Weight (${weightUnit}) | Duration | Distance (${distanceUnit}) | Rest |\n`;
         content += `|-----|------|----------|----------|----------|------|\n`;

@@ -267,6 +267,7 @@ export class WorkoutSessionView extends ItemView {
         const val = parseInt(timerInput.value);
         if (!isNaN(val) && val >= 0) {
           exercise.restTimerSeconds = val;
+          session.hasRoutineChanges = true;
           timerBtn.textContent = `⏱ ${val}s`;
         }
         timerEditor.hide();

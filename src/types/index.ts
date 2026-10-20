@@ -198,6 +198,11 @@ export interface WorkoutPlanDefinition {
   routines: WorkoutPlanRoutineEntry[];
   notes?: string;
   filePath?: string;
+  /**
+   * Stored as `wj-pinned`. Pinned plans are listed first on the dashboard,
+   * for the plans currently being trained.
+   */
+  pinned?: boolean;
 }
 
 export interface WorkoutSessionSet {

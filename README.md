@@ -93,6 +93,10 @@ routines into a multi-day schedule (settings specific days of the week is option
 Plan notes can be used to jot down notes about the your fitness plan related to
 it. Those notes wont show up in the interfaces the plugin provides.
 
+Pin the plans you are currently training with the pin button on their card in
+the dashboard, and they are listed first. The pin is stored as
+`wj-pinned: true` in the plan's frontmatter, so you can also set it by hand.
+
 <table>
   <tr>
     <td align="center" width="50%">

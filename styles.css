@@ -357,6 +357,16 @@ body {
     height: 16px;
 }
 
+/* Pinned plans keep the pin lit; hovering hints at unpinning. */
+.workout-home-pin-btn.is-pinned {
+    color: var(--interactive-accent);
+}
+
+.workout-home-pin-btn.is-pinned:hover:not(:disabled) {
+    background: var(--wj-accent-soft);
+    color: var(--interactive-accent);
+}
+
 .wj-icon-btn-danger:hover:not(:disabled) {
     background: var(--wj-danger-soft);
     color: var(--text-error);
